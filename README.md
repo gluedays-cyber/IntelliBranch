@@ -1,8 +1,8 @@
 # IntelliBranch
 
 <p align="center">
-  <strong>Train-and-Serve Embedded Neural AI Engine in Pure Go</strong><br>
-  <em>Forge your own domain AI model from CSV in 1.5 seconds. Route execution flow in ~6.08 μs with Zero Downloads, Zero LLMs, and Zero CGO.</em>
+  <strong>Directly Creates and Runs Its Own Neural AI in Pure Go</strong><br>
+  <em>Stop borrowing third-party AIs. This engine creates its own domain artificial intelligence from scratch in 1.5 seconds, routing execution flow in ~6.08 μs with Zero Downloads and Zero CGO.</em>
 </p>
 
 <p align="center">
@@ -21,9 +21,9 @@
 
 ## What is IntelliBranch?
 
-**IntelliBranch** is an **embedded neural AI engine** that eliminates brittle `if-else` cascades, regex mazes, and bloated LLM calls.
+**IntelliBranch does NOT borrow, lease, or download external AI models. This engine directly creates and runs its own domain artificial intelligence from scratch.**
 
-Instead of relying on rigid string matching or expensive third-party APIs, it **trains a lightweight neural network directly on your domain dataset in under 2 seconds**. It maps typos, slang, inverted syntax, and colloquial phrasing into a continuous latent vector space—routing execution flow directly to your bound Go functions in **single-digit microseconds (6 μs)**.
+Instead of relying on brittle regex matching or calling bloated external LLMs, it **manufactures a domain-specific lightweight neural network directly from your dataset in under 2 seconds**. It maps typos, slang, inverted syntax, and colloquial phrasing into a continuous latent vector space—routing execution flow directly to your bound Go functions in **single-digit microseconds (6 μs)**.
 
 ```
 Incoming Request ("bruh can u refund order #49281")
