@@ -1,4 +1,3 @@
-<img width="1024" height="571" alt="Image" src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" />
 # IntelliBranch
 
 <p align="center">
@@ -21,6 +20,10 @@
 ---
 
 ## What is IntelliBranch?
+<img src="https://github.com" width="256" height="142.75" alt="Image" align="right" style="margin-left: 15px; margin-bottom: 10px;">
+
+여기에 본문 내용을 작성하세요. 이미지 주위로 텍스트가 자연스럽게 감싸며 흐르게 됩니다. 이 문단이 끝나고 다음 문단부터는 이미지 아래에 배치하고 싶다면 줄바꿈 태그를 사용하시면 됩니다.
+
 
 **IntelliBranch** replaces brittle, unmaintainable `if-else` cascades, regex mazes, and heavy external LLM calls with an **embedded, subword-tokenized 2-layer MLP neural engine**.
 
