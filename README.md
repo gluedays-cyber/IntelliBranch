@@ -1,8 +1,9 @@
 # IntelliBranch
 <img src="https://github.com/user-attachments/assets/3413a486-d71c-4285-841d-76bbe74f830a" width="226" height="200" alt="Image" align="right" style="margin-left: 15px; margin: 10px;">
+
 <p align="center">
-  <strong>High-Performance In-Memory Intelligent Branching Engine in Pure Go</strong><br>
-  <em>Sub-millisecond statistical control flow routing without external LLMs, GPUs, or CGO.</em>
+  <strong>Directly Creates and Runs Its Own Neural AI in Pure Go</strong><br>
+  <em>Stop borrowing third-party AIs. This engine creates its own domain artificial intelligence from scratch in 1.5 seconds, routing execution flow in ~6.08 μs with Zero Downloads and Zero CGO.</em>
 </p>
 
 <p align="center">
@@ -21,10 +22,9 @@
 
 ## What is IntelliBranch?
 
+**IntelliBranch does NOT borrow, lease, or download external AI models. This engine directly creates and runs its own domain artificial intelligence from scratch.**
 
-**IntelliBranch** replaces brittle, unmaintainable `if-else` cascades, regex mazes, and heavy external LLM calls with an **embedded, subword-tokenized 2-layer MLP neural engine**.
-
-Trained locally on your own domain datasets, it maps typos, slang, abbreviations, and inverted grammar into continuous latent vector spaces—routing execution flow directly to your bound Go functions in **single-digit microseconds (6 μs)**.
+Instead of relying on brittle regex matching or calling bloated external LLMs, it **manufactures a domain-specific lightweight neural network directly from your dataset in under 2 seconds**. It maps typos, slang, inverted syntax, and colloquial phrasing into a continuous latent vector space—routing execution flow directly to your bound Go functions in **single-digit microseconds (6 μs)**.
 
 ```
 Incoming Request ("bruh can u refund order #49281")
@@ -89,12 +89,14 @@ if strings.Contains(input, "refund") || strings.Contains(input, "cancel") {
 | **Typo & Slang Resilience**| ❌ 0% (Strict string match) | ✅ High | ✅ High | ✅ **High (BPE Subwords)** |
 | **Deployment Complexity** | Single binary | API client | CGO / C++ runtime / Ollama daemon | **Pure Go (`CGO_ENABLED=0`)** |
 | **Deterministic Fallback** | Hard-coded `default` branch | ❌ Unpredictable hallucinations | ❌ Hallucination & format errors | ✅ **Calibrated Guard (`< 0.60`)** |
+| **Model Acquisition** | N/A (Manual code) | Cloud API lease (OpenAI) | Download multi-GB checkpoints (HuggingFace) | **Zero Downloads (Forged from scratch in 1.5s)** |
 | **Model Retraining** | N/A (Manual code editing) | Black-box fine-tuning | Multi-hour GPU fine-tuning | **1.5-second CLI compilation** |
 
 ---
 
 ## Key Highlights
 
+- **Zero Downloads & On-The-Fly AI Creation**: You never download gigabytes of pre-trained weights from HuggingFace or lease external APIs. IntelliBranch forges a domain neural AI model directly from your CSV in under 2 seconds.
 - **Zero External Dependencies & Zero CGO**: 100% pure Go standard library. Compiles cleanly with `CGO_ENABLED=0` for portable cross-platform binaries.
 - **Microsecond Latency (~6.08 μs)**: Zero disk I/O on hot paths. Utilizes `sync.Pool` scratch buffers to achieve sub-millisecond throughput (>150,000 requests/sec per CPU core).
 - **Non-Linear Expressiveness**: Solves complex semantic logic (XOR/contextual negation) using GELU non-linear activations over 128 hidden dimensions.
@@ -117,7 +119,7 @@ Benchmarked on an AMD Ryzen 5 5600H (12 threads) running pure Go standard runtim
 
 ## 3-Step Lifecycle
 
-### Step 1: Prepare Your Domain Dataset (`data/sample_dataset.csv`)
+### Step 1: AI Design — Prepare Your Domain Knowledge (`data/sample_dataset.csv`)
 Create a clean two-column CSV containing natural user queries and corresponding target labels:
 
 ```csv
@@ -130,7 +132,7 @@ yo i typed the wrong apt number please update address,Delivery
 locked out of my account after 3 tries help pls,Account
 ```
 
-### Step 2: Compile Model Weights (`ib-train.exe`)
+### Step 2: Build Your Own AI — Compile Model Weights (`ib-train.exe`)
 Train your domain vocabulary and neural weights into a compact Little-Endian binary (`intent.bin`) using the standalone CLI:
 
 ```bash
@@ -141,7 +143,7 @@ go build -ldflags="-s -w" -o bin/ib-train.exe ./cmd/ib-train
 ./bin/ib-train.exe -data data/sample_dataset.csv -out weights/intent.bin -epochs 50 -lr 0.005 -vocab 250
 ```
 
-### Step 3: Run In-Memory Branching (`go run main.go`)
+### Step 3: AI-Powered Branching — Run In-Memory Routing (`go run main.go`)
 Bind domain actions to Go functions and dispatch incoming traffic in microseconds:
 
 ```go
