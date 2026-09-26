@@ -1,8 +1,8 @@
 # IntelliBranch
 
 <p align="center">
-  <strong>Self-Trained In-Memory Neural AI Engine in Pure Go</strong><br>
-  <em>Build your own domain AI model from scratch in seconds. Microsecond neural branching with Zero LLMs, Zero GPUs, and Zero CGO.</em>
+  <strong>Train-and-Serve Embedded Neural AI Engine in Pure Go</strong><br>
+  <em>Forge your own domain AI model from CSV in 1.5 seconds. Route execution flow in ~6.08 μs with Zero Downloads, Zero LLMs, and Zero CGO.</em>
 </p>
 
 <p align="center">
