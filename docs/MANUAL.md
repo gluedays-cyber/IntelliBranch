@@ -13,13 +13,13 @@ This guide provides pure Go engineers with a deep-dive technical manual and hand
    - [Constructor: `NewRouter`](#31-newrouter)
    - [Branch Binding: `Bind`](#32-bind)
    - [Safety Guard: `Fallback`](#33-fallback)
-   - [Dynamic Manifestation: `Dispatch`](#34-dynamic-manifestation-dispatch)
+   - [AI Branching & Execution: `Dispatch`](#34-ai-branching--execution-dispatch)
    - [Observability: `Inspect`](#35-inspect)
    - [Diagnostic Struct: `RouteTrace`](#36-routetrace)
 4. [End-to-End Production Tutorial](#4-end-to-end-production-tutorial)
-   - [Step 1: Domain Knowledge Definition (`dataset.csv`)](#step-1-domain-knowledge-definition-datasetcsv)
-   - [Step 2: Model Generation & Intelligence Crystallization (Training Pipeline)](#step-2-model-generation--intelligence-crystallization-training-pipeline)
-   - [Step 3: Dynamic Manifestation & Microsecond Branching (HTTP Service)](#step-3-dynamic-manifestation--microsecond-branching-http-service)
+   - [Step 1: AI Design — Structuring Domain Knowledge (`dataset.csv`)](#step-1-ai-design--structuring-domain-knowledge-datasetcsv)
+   - [Step 2: Building Your Own AI — Training & Model Generation (`ib-train`)](#step-2-building-your-own-ai--training--model-generation-ib-train)
+   - [Step 3: AI-Powered Branching — Microsecond Live Routing (`Dispatch`)](#step-3-ai-powered-branching--microsecond-live-routing-dispatch)
 5. [Advanced Production Recipes](#5-advanced-production-recipes)
    - [Context Propagation & Timeouts](#51-context-propagation--timeouts)
    - [Atomic Zero-Downtime Weight Hot-Reloading](#52-atomic-zero-downtime-weight-hot-reloading)
@@ -78,16 +78,15 @@ A critical architectural distinction for engineers:
 
 ```text
 ┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐
-│ 1. Knowledge Definition│ ────▶ │ 2. Intelligence        │ ────▶ │ 3. Control Flow Wireup │ ────▶ │ 4. Dynamic             │
-│    (CSV Dataset)       │       │    Crystallization     │       │    (router.Bind)       │       │    Manifestation       │
-│                        │       │    (ib-train CLI)      │       │                        │       │    (Dispatch / 6μs)    │
+│ 1. AI Design           │ ────▶ │ 2. Build Your Own AI   │ ────▶ │ 3. Wire AI Handlers    │ ────▶ │ 4. AI-Powered Branching│
+│    (CSV Knowledge)     │       │    (ib-train CLI)      │       │    (router.Bind)       │       │    (Dispatch / 6μs)    │
 └────────────────────────┘       └────────────────────────┘       └────────────────────────┘       └────────────────────────┘
 ```
 
-1. **Knowledge Definition (`sample_dataset.csv`)**: Define target classes and author 30–150 representative real-world phrasing examples per class.
-2. **Intelligence Crystallization (`ib-train`)**: The compiler engine builds subword merges and crystallizes neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
-3. **Control Flow Wireup (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and register safety fallbacks.
-4. **Dynamic Manifestation (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
+1. **AI Design (`sample_dataset.csv`)**: Define target classes and author 30–150 representative real-world phrasing examples per class.
+2. **Build Your Own AI (`ib-train`)**: The compiler engine builds subword merges and crystallizes neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
+3. **Wire AI Handlers (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and register safety fallbacks.
+4. **AI-Powered Branching (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
 
 ---
 
@@ -146,7 +145,7 @@ func (r *Router) Fallback(handler Handler) *Router
 
 ---
 
-### 3.4. Dynamic Manifestation: `Dispatch`
+### 3.4. AI Branching & Execution: `Dispatch`
 
 Performs subword tokenization, forward neural inference, confidence evaluation, and executes the appropriate handler.
 
@@ -201,7 +200,7 @@ type RouteTrace struct {
 
 ## 4. End-to-End Production Tutorial
 
-### Step 1: Authoring the Domain Dataset (`dataset.csv`)
+### Step 1: AI Design — Structuring Domain Knowledge (`dataset.csv`)
 
 The intelligence of the routing engine directly reflects the quality and variety of your dataset. Below are the mandatory structural specifications and data engineering principles:
 
@@ -245,7 +244,7 @@ refund now,Refund
 delivery,Delivery
 ```
 
-### Step 2: Model Generation & Intelligence Crystallization (Training Pipeline)
+### Step 2: Building Your Own AI — Training & Model Generation (`ib-train`)
 
 IntelliBranch provides two distinct training mechanisms: **[1. Standalone CLI Tool]** for CI/CD and terminal usage, and **[2. In-Code Programmatic Go API]** for dynamic in-process training.
 
@@ -347,7 +346,7 @@ Epoch  20/50 - Train Loss: 0.0002 (Acc: 100.0%) | Val Loss: 0.4485 (Acc: 94.0%)
 - **Train Loss vs Val Loss**: Train accuracy reaching 100% with Val accuracy > 90% indicates strong generalization across unseen phrasing.
 - **Early Stopping**: The engine automatically halts training when validation loss stops improving, preventing overfitting and eliminating wasted CPU cycles. Total training finishes in ~1.5 to 2.0 seconds on standard CPUs.
 
-### Step 3: Dynamic Manifestation & Microsecond Branching (HTTP Service)
+### Step 3: AI-Powered Branching — Microsecond Live Routing (`Dispatch`)
 
 Create a high-performance HTTP service routing incoming support requests in microseconds:
 

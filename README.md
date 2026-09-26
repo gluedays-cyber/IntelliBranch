@@ -116,7 +116,7 @@ Benchmarked on an AMD Ryzen 5 5600H (12 threads) running pure Go standard runtim
 
 ## 3-Step Lifecycle
 
-### Step 1: Prepare Your Domain Dataset (`data/sample_dataset.csv`)
+### Step 1: AI Design — Prepare Your Domain Knowledge (`data/sample_dataset.csv`)
 Create a clean two-column CSV containing natural user queries and corresponding target labels:
 
 ```csv
@@ -129,7 +129,7 @@ yo i typed the wrong apt number please update address,Delivery
 locked out of my account after 3 tries help pls,Account
 ```
 
-### Step 2: Compile Model Weights (`ib-train.exe`)
+### Step 2: Build Your Own AI — Compile Model Weights (`ib-train.exe`)
 Train your domain vocabulary and neural weights into a compact Little-Endian binary (`intent.bin`) using the standalone CLI:
 
 ```bash
@@ -140,7 +140,7 @@ go build -ldflags="-s -w" -o bin/ib-train.exe ./cmd/ib-train
 ./bin/ib-train.exe -data data/sample_dataset.csv -out weights/intent.bin -epochs 50 -lr 0.005 -vocab 250
 ```
 
-### Step 3: Run In-Memory Branching (`go run main.go`)
+### Step 3: AI-Powered Branching — Run In-Memory Routing (`go run main.go`)
 Bind domain actions to Go functions and dispatch incoming traffic in microseconds:
 
 ```go
