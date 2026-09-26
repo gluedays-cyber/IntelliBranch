@@ -7,18 +7,19 @@ This guide provides pure Go engineers with a deep-dive technical manual and hand
 ## Table of Contents
 
 1. [Architectural Mental Model for Go Engineers](#1-architectural-mental-model-for-go-engineers)
+   - [Intelligence Crystallization vs. Dynamic Manifestation](#11-intelligence-crystallization-vs-dynamic-manifestation)
 2. [The 4-Step Operational Workflow](#2-the-4-step-operational-workflow)
 3. [Keyword & API Reference Manual](#3-keyword--api-reference-manual)
    - [Constructor: `NewRouter`](#31-newrouter)
    - [Branch Binding: `Bind`](#32-bind)
    - [Safety Guard: `Fallback`](#33-fallback)
-   - [Execution: `Dispatch`](#34-dispatch)
+   - [Dynamic Manifestation: `Dispatch`](#34-dynamic-manifestation-dispatch)
    - [Observability: `Inspect`](#35-inspect)
    - [Diagnostic Struct: `RouteTrace`](#36-routetrace)
 4. [End-to-End Production Tutorial](#4-end-to-end-production-tutorial)
-   - [Step 1: Dataset Authoring](#step-1-authoring-the-domain-dataset)
-   - [Step 2: Binary Weight Compilation](#step-2-compiling-binary-weights)
-   - [Step 3: Building an HTTP Microservice Router](#step-3-building-an-http-microservice-router)
+   - [Step 1: Domain Knowledge Definition (`dataset.csv`)](#step-1-domain-knowledge-definition-datasetcsv)
+   - [Step 2: Model Generation & Intelligence Crystallization (Training Pipeline)](#step-2-model-generation--intelligence-crystallization-training-pipeline)
+   - [Step 3: Dynamic Manifestation & Microsecond Branching (HTTP Service)](#step-3-dynamic-manifestation--microsecond-branching-http-service)
 5. [Advanced Production Recipes](#5-advanced-production-recipes)
    - [Context Propagation & Timeouts](#51-context-propagation--timeouts)
    - [Atomic Zero-Downtime Weight Hot-Reloading](#52-atomic-zero-downtime-weight-hot-reloading)
@@ -61,21 +62,32 @@ This works if and only if `input` precisely equals `"refund"`. If the caller sen
 [ Branch Dispatch ] ───── Direct Go function execution in ~6.08 microseconds
 ```
 
+### 1.1. Intelligence Crystallization vs. Dynamic Manifestation
+
+A critical architectural distinction for engineers:
+
+| Dimension | Phase 1: Model Generation (Training) | Phase 2: Router Dispatch (Inference) |
+| :--- | :--- | :--- |
+| **State of Intelligence** | **Crystallization of Intelligence** (Potential Energy) | **Dynamic Manifestation of Intelligence** (Kinetic Energy) |
+| **Operational Role** | Encodes statistical domain boundaries into 100 KB weights | Evaluates unseen real-world queries in ~6.08 μs |
+| **Engineering Reality**| BPE induction, AdamW backpropagation, GELU optimization | Real-time generalisation over typos, slang, and syntax |
+
 ---
 
 ## 2. The 4-Step Operational Workflow
 
 ```text
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│ 1. Data Design  │ ────▶ │ 2. Compilation  │ ────▶ │ 3. Wire Handlers│ ────▶ │ 4. Live Traffic │
-│ (CSV Dataset)   │       │ (ib-train CLI)  │       │ (router.Bind)   │       │ (Dispatch / 6μs)│
-└─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
+┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐
+│ 1. Knowledge Definition│ ────▶ │ 2. Intelligence        │ ────▶ │ 3. Control Flow Wireup │ ────▶ │ 4. Dynamic             │
+│    (CSV Dataset)       │       │    Crystallization     │       │    (router.Bind)       │       │    Manifestation       │
+│                        │       │    (ib-train CLI)      │       │                        │       │    (Dispatch / 6μs)    │
+└────────────────────────┘       └────────────────────────┘       └────────────────────────┘       └────────────────────────┘
 ```
 
-1. **Data Design (`sample_dataset.csv`)**: Define target classes and author 20–50 representative real-world phrasing examples per class.
-2. **Offline Compilation (`ib-train`)**: The CLI engine builds subword merges and trains neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
-3. **Handler Binding (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and set a fallback handler.
-4. **Live In-Memory Dispatch (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
+1. **Knowledge Definition (`sample_dataset.csv`)**: Define target classes and author 30–150 representative real-world phrasing examples per class.
+2. **Intelligence Crystallization (`ib-train`)**: The compiler engine builds subword merges and crystallizes neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
+3. **Control Flow Wireup (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and register safety fallbacks.
+4. **Dynamic Manifestation (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
 
 ---
 
@@ -134,7 +146,7 @@ func (r *Router) Fallback(handler Handler) *Router
 
 ---
 
-### 3.4. `Dispatch`
+### 3.4. Dynamic Manifestation: `Dispatch`
 
 Performs subword tokenization, forward neural inference, confidence evaluation, and executes the appropriate handler.
 
@@ -233,7 +245,7 @@ refund now,Refund
 delivery,Delivery
 ```
 
-### Step 2: Compiling Binary Weights (Training Pipeline)
+### Step 2: Model Generation & Intelligence Crystallization (Training Pipeline)
 
 IntelliBranch provides two distinct training mechanisms: **[1. Standalone CLI Tool]** for CI/CD and terminal usage, and **[2. In-Code Programmatic Go API]** for dynamic in-process training.
 
@@ -335,7 +347,7 @@ Epoch  20/50 - Train Loss: 0.0002 (Acc: 100.0%) | Val Loss: 0.4485 (Acc: 94.0%)
 - **Train Loss vs Val Loss**: Train accuracy reaching 100% with Val accuracy > 90% indicates strong generalization across unseen phrasing.
 - **Early Stopping**: The engine automatically halts training when validation loss stops improving, preventing overfitting and eliminating wasted CPU cycles. Total training finishes in ~1.5 to 2.0 seconds on standard CPUs.
 
-### Step 3: Building an HTTP Microservice Router
+### Step 3: Dynamic Manifestation & Microsecond Branching (HTTP Service)
 
 Create a high-performance HTTP service routing incoming support requests in microseconds:
 
