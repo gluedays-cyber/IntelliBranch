@@ -88,12 +88,14 @@ if strings.Contains(input, "refund") || strings.Contains(input, "cancel") {
 | **Typo & Slang Resilience**| ❌ 0% (Strict string match) | ✅ High | ✅ High | ✅ **High (BPE Subwords)** |
 | **Deployment Complexity** | Single binary | API client | CGO / C++ runtime / Ollama daemon | **Pure Go (`CGO_ENABLED=0`)** |
 | **Deterministic Fallback** | Hard-coded `default` branch | ❌ Unpredictable hallucinations | ❌ Hallucination & format errors | ✅ **Calibrated Guard (`< 0.60`)** |
+| **Model Acquisition** | N/A (Manual code) | Cloud API lease (OpenAI) | Download multi-GB checkpoints (HuggingFace) | **Zero Downloads (Forged from scratch in 1.5s)** |
 | **Model Retraining** | N/A (Manual code editing) | Black-box fine-tuning | Multi-hour GPU fine-tuning | **1.5-second CLI compilation** |
 
 ---
 
 ## Key Highlights
 
+- **Zero Downloads & On-The-Fly AI Creation**: You never download gigabytes of pre-trained weights from HuggingFace or lease external APIs. IntelliBranch forges a domain neural AI model directly from your CSV in under 2 seconds.
 - **Zero External Dependencies & Zero CGO**: 100% pure Go standard library. Compiles cleanly with `CGO_ENABLED=0` for portable cross-platform binaries.
 - **Microsecond Latency (~6.08 μs)**: Zero disk I/O on hot paths. Utilizes `sync.Pool` scratch buffers to achieve sub-millisecond throughput (>150,000 requests/sec per CPU core).
 - **Non-Linear Expressiveness**: Solves complex semantic logic (XOR/contextual negation) using GELU non-linear activations over 128 hidden dimensions.
