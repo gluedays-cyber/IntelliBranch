@@ -189,18 +189,48 @@ type RouteTrace struct {
 
 ## 4. End-to-End Production Tutorial
 
-### Step 1: Authoring the Domain Dataset
+### Step 1: Authoring the Domain Dataset (`dataset.csv`)
 
-Create `data/support_intents.csv` with natural phrasing across your target business operations:
+The intelligence of the routing engine directly reflects the quality and variety of your dataset. Below are the mandatory structural specifications and data engineering principles:
+
+#### 1. File Format & Schema Specifications
+
+- **Header**: The first row must strictly be `text,label`.
+- **Encoding**: UTF-8 without BOM.
+- **Delimiter**: Comma (`,`). If an input text contains commas, wrap the text in standard double quotes (`"`):
+  ```csv
+  text,label
+  "hey, where is my order?",Delivery
+  ```
+- **Label Consistency**: Labels are case-sensitive strings and must exactly match the string literals passed to `.Bind("Label", ...)` in your Go code.
+
+#### 2. Golden Rules for High-Accuracy Datasets
+
+| Rule | Specification | Engineering Rationale |
+| :--- | :--- | :--- |
+| **Minimum Sample Count** | **30 – 150 samples per class** | Guarantees enough subword co-occurrences for BPE and AdamW convergence. |
+| **Class Balance** | Keep sample ratios within **1:1 to 2:1** | Prevents the model from biasing predictions toward over-represented classes. |
+| **Linguistic Entropy** | Vary syntax, length, and vocabulary | Mix short queries (`"refund plz"`), full sentences, questions, and commands. |
+| **Slang & Typos** | Deliberately include common mistakes | Expose the BPE tokenizer to misspellings (`"refnd"`, `"delivry"`, `"pasword"`). |
+| **Boundary Disambiguation**| Include shared-word contrastive samples | Disambiguate `"cancel delivery alerts"` (Delivery) from `"cancel my charge"` (Refund). |
+| **Noise Exclusion** | **Do NOT add random noise rows** | The engine's linear OOV penalty and `< 0.60` threshold automatically isolate noise. |
+
+#### 3. Dataset Example: DOs vs. DONTs
 
 ```csv
 text,label
-i want my money back for order 928,Refund
-cancel the transaction and refund to credit card,Refund
-where is my delivery parcel,Delivery
-tracking shows delayed can you check shipment,Delivery
-forgot password cannot log into portal,Account
-please send password reset email,Account
+# ✅ DO: Realistic phrasing, abbreviations, and sentence variety
+can u cancel order #49281? i bought it by mistake,Refund
+got charged twice on my card refund the extra charge asap,Refund
+tracking says delivered but mailbox is empty where is my stuff,Delivery
+sent back the return box 3 days ago when do i see money,Refund
+locked out of my account after 3 failed tries,Account
+
+# ❌ DONT: Robotic, repetitive keywords with zero variation
+refund,Refund
+refund please,Refund
+refund now,Refund
+delivery,Delivery
 ```
 
 ### Step 2: Compiling Binary Weights
