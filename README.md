@@ -1,5 +1,5 @@
 # IntelliBranch
-
+<img src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" width="356" height="200" alt="Image" align="right" style="margin-left: 15px; margin: 10px;">
 <p align="center">
   <strong>High-Performance In-Memory Intelligent Branching Engine in Pure Go</strong><br>
   <em>Sub-millisecond statistical control flow routing without external LLMs, GPUs, or CGO.</em>
@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8.svg" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License">
 </p>
-<img src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" width="356" height="200" alt="Image" align="right" style="margin-left: 15px; margin: 10px;">
+
 <p align="center">
   <a href="docs/MANUAL.md"><strong>📖 Read the Full Developer Manual & Production Tutorial →</strong></a>
 </p>
