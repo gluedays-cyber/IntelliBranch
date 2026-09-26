@@ -7,18 +7,19 @@ This guide provides pure Go engineers with a deep-dive technical manual and hand
 ## Table of Contents
 
 1. [Architectural Mental Model for Go Engineers](#1-architectural-mental-model-for-go-engineers)
+   - [Intelligence Crystallization vs. Dynamic Manifestation](#11-intelligence-crystallization-vs-dynamic-manifestation)
 2. [The 4-Step Operational Workflow](#2-the-4-step-operational-workflow)
 3. [Keyword & API Reference Manual](#3-keyword--api-reference-manual)
    - [Constructor: `NewRouter`](#31-newrouter)
    - [Branch Binding: `Bind`](#32-bind)
    - [Safety Guard: `Fallback`](#33-fallback)
-   - [Execution: `Dispatch`](#34-dispatch)
+   - [AI Branching & Execution: `Dispatch`](#34-ai-branching--execution-dispatch)
    - [Observability: `Inspect`](#35-inspect)
    - [Diagnostic Struct: `RouteTrace`](#36-routetrace)
 4. [End-to-End Production Tutorial](#4-end-to-end-production-tutorial)
-   - [Step 1: Dataset Authoring](#step-1-authoring-the-domain-dataset)
-   - [Step 2: Binary Weight Compilation](#step-2-compiling-binary-weights)
-   - [Step 3: Building an HTTP Microservice Router](#step-3-building-an-http-microservice-router)
+   - [Step 1: AI Design — Structuring Domain Knowledge (`dataset.csv`)](#step-1-ai-design--structuring-domain-knowledge-datasetcsv)
+   - [Step 2: Building Your Own AI — Training & Model Generation (`ib-train`)](#step-2-building-your-own-ai--training--model-generation-ib-train)
+   - [Step 3: AI-Powered Branching — Microsecond Live Routing (`Dispatch`)](#step-3-ai-powered-branching--microsecond-live-routing-dispatch)
 5. [Advanced Production Recipes](#5-advanced-production-recipes)
    - [Context Propagation & Timeouts](#51-context-propagation--timeouts)
    - [Atomic Zero-Downtime Weight Hot-Reloading](#52-atomic-zero-downtime-weight-hot-reloading)
@@ -61,21 +62,31 @@ This works if and only if `input` precisely equals `"refund"`. If the caller sen
 [ Branch Dispatch ] ───── Direct Go function execution in ~6.08 microseconds
 ```
 
+### 1.1. Intelligence Crystallization vs. Dynamic Manifestation
+
+A critical architectural distinction for engineers:
+
+| Dimension | Phase 1: Model Generation (Training) | Phase 2: Router Dispatch (Inference) |
+| :--- | :--- | :--- |
+| **State of Intelligence** | **Crystallization of Intelligence** (Potential Energy) | **Dynamic Manifestation of Intelligence** (Kinetic Energy) |
+| **Operational Role** | Encodes statistical domain boundaries into 100 KB weights | Evaluates unseen real-world queries in ~6.08 μs |
+| **Engineering Reality**| BPE induction, AdamW backpropagation, GELU optimization | Real-time generalisation over typos, slang, and syntax |
+
 ---
 
 ## 2. The 4-Step Operational Workflow
 
 ```text
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│ 1. Data Design  │ ────▶ │ 2. Compilation  │ ────▶ │ 3. Wire Handlers│ ────▶ │ 4. Live Traffic │
-│ (CSV Dataset)   │       │ (ib-train CLI)  │       │ (router.Bind)   │       │ (Dispatch / 6μs)│
-└─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
+┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐
+│ 1. AI Design           │ ────▶ │ 2. Build Your Own AI   │ ────▶ │ 3. Wire AI Handlers    │ ────▶ │ 4. AI-Powered Branching│
+│    (CSV Knowledge)     │       │    (ib-train CLI)      │       │    (router.Bind)       │       │    (Dispatch / 6μs)    │
+└────────────────────────┘       └────────────────────────┘       └────────────────────────┘       └────────────────────────┘
 ```
 
-1. **Data Design (`sample_dataset.csv`)**: Define target classes and author 20–50 representative real-world phrasing examples per class.
-2. **Offline Compilation (`ib-train`)**: The CLI engine builds subword merges and trains neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
-3. **Handler Binding (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and set a fallback handler.
-4. **Live In-Memory Dispatch (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
+1. **AI Design (`sample_dataset.csv`)**: Define target classes and author 30–150 representative real-world phrasing examples per class.
+2. **Build Your Own AI (`ib-train`)**: The compiler engine builds subword merges and crystallizes neural weights into a compact Little-Endian binary (`.bin`) with SHA-256 integrity verification.
+3. **Wire AI Handlers (`main.go`)**: Initialize `Router`, bind target labels to standard Go functions, and register safety fallbacks.
+4. **AI-Powered Branching (`router.Dispatch`)**: Incoming requests are evaluated and dispatched within 6 microseconds with single-digit memory allocations (`sync.Pool`).
 
 ---
 
@@ -134,7 +145,7 @@ func (r *Router) Fallback(handler Handler) *Router
 
 ---
 
-### 3.4. `Dispatch`
+### 3.4. AI Branching & Execution: `Dispatch`
 
 Performs subword tokenization, forward neural inference, confidence evaluation, and executes the appropriate handler.
 
@@ -189,33 +200,153 @@ type RouteTrace struct {
 
 ## 4. End-to-End Production Tutorial
 
-### Step 1: Authoring the Domain Dataset
+### Step 1: AI Design — Structuring Domain Knowledge (`dataset.csv`)
 
-Create `data/support_intents.csv` with natural phrasing across your target business operations:
+The intelligence of the routing engine directly reflects the quality and variety of your dataset. Below are the mandatory structural specifications and data engineering principles:
+
+#### 1. File Format & Schema Specifications
+
+- **Header**: The first row must strictly be `text,label`.
+- **Encoding**: UTF-8 without BOM.
+- **Delimiter**: Comma (`,`). If an input text contains commas, wrap the text in standard double quotes (`"`):
+  ```csv
+  text,label
+  "hey, where is my order?",Delivery
+  ```
+- **Label Consistency**: Labels are case-sensitive strings and must exactly match the string literals passed to `.Bind("Label", ...)` in your Go code.
+
+#### 2. Golden Rules for High-Accuracy Datasets
+
+| Rule | Specification | Engineering Rationale |
+| :--- | :--- | :--- |
+| **Minimum Sample Count** | **30 – 150 samples per class** | Guarantees enough subword co-occurrences for BPE and AdamW convergence. |
+| **Class Balance** | Keep sample ratios within **1:1 to 2:1** | Prevents the model from biasing predictions toward over-represented classes. |
+| **Linguistic Entropy** | Vary syntax, length, and vocabulary | Mix short queries (`"refund plz"`), full sentences, questions, and commands. |
+| **Slang & Typos** | Deliberately include common mistakes | Expose the BPE tokenizer to misspellings (`"refnd"`, `"delivry"`, `"pasword"`). |
+| **Boundary Disambiguation**| Include shared-word contrastive samples | Disambiguate `"cancel delivery alerts"` (Delivery) from `"cancel my charge"` (Refund). |
+| **Noise Exclusion** | **Do NOT add random noise rows** | The engine's linear OOV penalty and `< 0.60` threshold automatically isolate noise. |
+
+#### 3. Dataset Example: DOs vs. DONTs
 
 ```csv
 text,label
-i want my money back for order 928,Refund
-cancel the transaction and refund to credit card,Refund
-where is my delivery parcel,Delivery
-tracking shows delayed can you check shipment,Delivery
-forgot password cannot log into portal,Account
-please send password reset email,Account
+# ✅ DO: Realistic phrasing, abbreviations, and sentence variety
+can u cancel order #49281? i bought it by mistake,Refund
+got charged twice on my card refund the extra charge asap,Refund
+tracking says delivered but mailbox is empty where is my stuff,Delivery
+sent back the return box 3 days ago when do i see money,Refund
+locked out of my account after 3 failed tries,Account
+
+# ❌ DONT: Robotic, repetitive keywords with zero variation
+refund,Refund
+refund please,Refund
+refund now,Refund
+delivery,Delivery
 ```
 
-### Step 2: Compiling Binary Weights
+### Step 2: Building Your Own AI — Training & Model Generation (`ib-train`)
 
-Build the training tool and train the dataset:
+IntelliBranch provides two distinct training mechanisms: **[1. Standalone CLI Tool]** for CI/CD and terminal usage, and **[2. In-Code Programmatic Go API]** for dynamic in-process training.
+
+#### 1. Method A: Standalone CLI Training (`ib-train`)
+
+Build the standalone compiler binary and run the training pipeline:
 
 ```bash
 # 1. Compile the training tool
 go build -ldflags="-s -w" -o bin/ib-train.exe ./cmd/ib-train
 
 # 2. Compile model weights into Little-Endian binary
-./bin/ib-train.exe -data data/support_intents.csv -out weights/support.bin -epochs 50 -lr 0.005 -vocab 250
+./bin/ib-train.exe -data data/support_intents.csv -out weights/support.bin -epochs 50 -lr 0.005 -vocab 250 -seed 42
 ```
 
-### Step 3: Building an HTTP Microservice Router
+##### CLI Flag Reference
+
+| Flag | Default | Valid Range | Operational Role |
+| :--- | :--- | :--- | :--- |
+| **`-data`** | *(Required)* | Valid `.csv` path | Input CSV dataset file containing `text,label` columns. |
+| **`-out`** | `weights/intent.bin` | Valid `.bin` path | Target output file for the compiled Little-Endian binary weights. |
+| **`-epochs`** | `50` | `10 – 300` | Maximum number of AdamW backpropagation training epochs. |
+| **`-lr`** | `0.005` | `0.0001 – 0.05` | AdamW learning rate. Default `0.005` provides fast, stable convergence. |
+| **`-vocab`** | `250` | `100 – 2000` | Target BPE subword vocabulary size. 250 is optimal for 3–10 classes. |
+| **`-seed`** | `42` | Any `int64` | Random seed for deterministic train/validation split and initialization. |
+
+#### 2. Method B: Programmatic Training via Go Code
+
+Train and export binary weights directly inside your Go application without external processes:
+
+```go
+package main
+
+import (
+	"log"
+
+	"intellibranch/pkg/intellibranch"
+)
+
+func main() {
+	// 1. Load samples from CSV
+	samples, err := intellibranch.LoadDatasetCSV("data/support_intents.csv")
+	if err != nil {
+		log.Fatalf("Dataset load error: %v", err)
+	}
+
+	// 2. Configure training hyperparameters
+	config := intellibranch.DefaultTrainConfig()
+	config.Epochs = 50
+	config.LearningRate = 0.005
+	config.VocabSize = 250
+
+	// 3. Execute BPE + AdamW training pipeline
+	model, err := intellibranch.TrainModel(samples, config)
+	if err != nil {
+		log.Fatalf("Training failed: %v", err)
+	}
+
+	// 4. Serialize to Little-Endian binary with SHA-256 integrity hash
+	if err := intellibranch.SaveToFile(model, "weights/support.bin"); err != nil {
+		log.Fatalf("Model export failed: %v", err)
+	}
+
+	log.Println("Model successfully trained and saved!")
+}
+```
+
+#### 3. Training Pipeline Architecture & Phases
+
+```text
+[ CSV Dataset ] ──▶ [ Phase 1: BPE Subword Merge Extraction ] (Builds statistical vocabulary)
+                          │
+                          ▼
+                    [ Phase 2: Stratified 80/20 Train/Val Split ] (Preserves class balance)
+                          │
+                          ▼
+                    [ Phase 3: AdamW Optimization with GELU ] (Weight decay = 0.01)
+                          │
+                          ▼
+                    [ Phase 4: Early Stopping Monitor ] (Halts if Val Loss stagnates for 10 epochs)
+                          │
+                          ▼
+                    [ Phase 5: Little-Endian Binary Serialization ] (SHA-256 checksum injected)
+```
+
+#### 4. Interpreting Training Logs
+
+```text
+2026/09/26 15:47:23 Loading dataset from: data/support_intents.csv
+2026/09/26 15:47:23 Loaded 1015 training samples
+2026/09/26 15:47:23 Starting offline BPE + AdamW training pipeline...
+Epoch  10/50 - Train Loss: 0.0006 (Acc: 100.0%) | Val Loss: 0.3990 (Acc: 94.0%)
+Epoch  20/50 - Train Loss: 0.0002 (Acc: 100.0%) | Val Loss: 0.4485 (Acc: 94.0%)
+[Early Stopping] Triggered at epoch 30 (Train Loss: 0.0001, Val Loss: 0.4753)
+2026/09/26 15:47:25 Serializing trained model to Little-Endian binary: weights/support.bin
+2026/09/26 15:47:25 Training and binary export completed successfully.
+```
+
+- **Train Loss vs Val Loss**: Train accuracy reaching 100% with Val accuracy > 90% indicates strong generalization across unseen phrasing.
+- **Early Stopping**: The engine automatically halts training when validation loss stops improving, preventing overfitting and eliminating wasted CPU cycles. Total training finishes in ~1.5 to 2.0 seconds on standard CPUs.
+
+### Step 3: AI-Powered Branching — Microsecond Live Routing (`Dispatch`)
 
 Create a high-performance HTTP service routing incoming support requests in microseconds:
 
