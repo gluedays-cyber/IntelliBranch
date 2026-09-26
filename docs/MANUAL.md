@@ -1,6 +1,6 @@
-# IntelliBranch: Comprehensive Manual & Tutorial for Go Developers
+# IntelliBranch: Embedded Neural AI Manual & Tutorial for Go Developers
 
-This guide provides pure Go engineers with a deep-dive technical manual and hands-on tutorial for **IntelliBranch**. It covers architectural workflows, exact keyword/API semantics, idiomatic usage patterns, and real-world production recipes.
+This guide provides pure Go engineers with a deep-dive technical manual and hands-on tutorial for **IntelliBranch: A Self-Trained Embedded Neural AI Engine**. It covers how to design domain knowledge, train lightweight neural networks from scratch, and execute microsecond AI-driven control flow with zero external dependencies.
 
 ---
 
