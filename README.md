@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8.svg" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License">
 </p>
-
+<img src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" width="356" height="200" alt="Image" align="right" style="margin-left: 15px; margin: 10px;">
 <p align="center">
   <a href="docs/MANUAL.md"><strong>📖 Read the Full Developer Manual & Production Tutorial →</strong></a>
 </p>
@@ -20,7 +20,7 @@
 ---
 
 ## What is IntelliBranch?
-<img src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" width="356" height="200" alt="Image" align="right" style="margin-left: 15px; margin: 10px;">
+
 
 **IntelliBranch** replaces brittle, unmaintainable `if-else` cascades, regex mazes, and heavy external LLM calls with an **embedded, subword-tokenized 2-layer MLP neural engine**.
 
