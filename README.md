@@ -1,3 +1,4 @@
+<img width="1024" height="571" alt="Image" src="https://github.com/user-attachments/assets/e1454452-0581-4c58-b122-e78129b070c0" />
 # IntelliBranch
 
 <p align="center">
