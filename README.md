@@ -48,7 +48,7 @@ Incoming Request ("bruh can u refund order #49281")
 
 ---
 
-## Why IntelliBranch? (Beyond Retro Branching and Bloated LLMs)
+## Why IntelliBranch? (Beyond Retro Branching, Cloud LLMs, and Bloated Local Models)
 
 Modern backends face an architectural dilemma when routing unstructured or noisy user requests:
 
@@ -60,30 +60,35 @@ if strings.Contains(input, "refund") || strings.Contains(input, "cancel") {
     // MISROUTES on: "cancel shipment delay notifications" (word collision)
 }
 
-// ❌ CLOUD LLMs: Massive overhead, cost, network vulnerability, and latency
+// ❌ CLOUD LLMs: Massive network latency, recurring per-token cost, third-party dependency
 // Latency: 400ms – 2,500ms (Unusable in high-throughput microservices)
 // Cost: $0.0015 – $0.03 per request (Bills explode under scale)
 // Vulnerability: Outages, rate limits, JSON hallucination, network partitions
 
+// ❌ LOCAL LLMs & SLMs (Ollama, llama.cpp, Mistral-7B, Phi-3): Severe host resource exhaustion
+// Memory: Monopolizes 4.5 GB to 8.0 GB+ of RAM/VRAM just to pick a 4-byte enum
+// CPU Starvation: Burns 100% CPU across multiple cores, starving companion microservices
+// Deployment Complexity: Requires CGO, C++ shared libraries (libllama.so), or background daemons
+
 // ✅ INTELLIBRANCH: Self-Generated Micro-AI (In-Memory Go Engine)
-// Generates its own compact subword vocabulary & neural weights in seconds
-// Maps syntax variations, typos, and semantic intent into continuous latent space
-// Executes in ~6.08 μs with ZERO external network calls and deterministic fallback
+// Memory Footprint: Under 150 KB (30,000x smaller than quantized 7B models)
+// Latency: ~6.08 μs with ZERO external network calls and deterministic fallback
+// Deployment: 100% Pure Go with CGO_ENABLED=0 single static binary
 ```
 
 ### Architectural Comparison Matrix
 
-| Capability | Retro Branching (`if-else` / Regex) | Cloud LLMs (OpenAI, Claude) | IntelliBranch (Embedded Engine) |
-| :--- | :--- | :--- | :--- |
-| **Inference Latency** | < 1 μs | 300 ms – 2,500 ms (Network bound) | **~6.08 μs (Single-process in-memory)** |
-| **Throughput (per core)** | > 500,000 req/sec | ~50 req/sec (Rate limited) | **> 150,000 req/sec (`sync.Pool` zero-alloc)** |
-| **Operational Cost** | $0.00 | $0.0015+ per call | **$0.00 (Self-contained)** |
-| **Typo & Slang Resilience** | ❌ 0% (Strict string matching) | ✅ High | ✅ **High (BPE Subword Tokenization)** |
-| **Semantic Paraphrasing** | ❌ Impossible to cover manually | ✅ High | ✅ **Trained Domain Latent Space** |
-| **External Dependencies** | None | ❌ Heavy (API Keys, HTTP clients) | **None (100% Pure Go Standard Library)** |
-| **Binary / Memory Footprint** | None | External Service | **< 150 KB Weight File (Zero CGO)** |
-| **Deterministic Fallback** | Hard-coded `default` branch | ❌ Unpredictable hallucinations | ✅ **Calibrated Threshold Guard (`< 0.60`)** |
-| **Self-Contained Training** | N/A (Manual rule coding) | Black-box fine-tuning | **Standalone CLI (`ib-train`) in pure Go** |
+| Capability | Retro Branching (`if` / Regex) | Cloud LLMs (OpenAI / Claude) | Local LLMs (Ollama / llama.cpp) | **IntelliBranch (Embedded Engine)** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Inference Latency** | < 1 μs | 300 ms – 2,500 ms (Network bound) | 30 ms – 300 ms (Compute bound) | **~6.08 μs (In-Memory)** |
+| **Throughput (per core)** | > 500,000 req/sec | ~50 req/sec (Rate limited) | ~20–50 req/sec (CPU saturated) | **> 150,000 req/sec (`sync.Pool`)** |
+| **System Memory (RAM)** | Negligible | External service | **4.5 GB – 8.0 GB+ (VRAM / RAM)** | **< 150 KB (30,000x lighter)** |
+| **Hardware Reqs** | Standard CPU | External service | High-end GPU or 8+ Core CPU | **Runs on a $5 VPS (16MB container)** |
+| **Operational Cost** | $0.00 | $0.0015+ per call | High hardware/electricity cost | **$0.00 (Self-contained)** |
+| **Typo & Slang Resilience**| ❌ 0% (Strict string match) | ✅ High | ✅ High | ✅ **High (BPE Subwords)** |
+| **Deployment Complexity** | Single binary | API client | CGO / C++ runtime / Ollama daemon | **Pure Go (`CGO_ENABLED=0`)** |
+| **Deterministic Fallback** | Hard-coded `default` branch | ❌ Unpredictable hallucinations | ❌ Hallucination & format errors | ✅ **Calibrated Guard (`< 0.60`)** |
+| **Model Retraining** | N/A (Manual code editing) | Black-box fine-tuning | Multi-hour GPU fine-tuning | **1.5-second CLI compilation** |
 
 ---
 
