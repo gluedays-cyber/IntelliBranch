@@ -233,17 +233,107 @@ refund now,Refund
 delivery,Delivery
 ```
 
-### Step 2: Compiling Binary Weights
+### Step 2: Compiling Binary Weights (Training Pipeline)
 
-Build the training tool and train the dataset:
+IntelliBranch provides two distinct training mechanisms: **[1. Standalone CLI Tool]** for CI/CD and terminal usage, and **[2. In-Code Programmatic Go API]** for dynamic in-process training.
+
+#### 1. Method A: Standalone CLI Training (`ib-train`)
+
+Build the standalone compiler binary and run the training pipeline:
 
 ```bash
 # 1. Compile the training tool
 go build -ldflags="-s -w" -o bin/ib-train.exe ./cmd/ib-train
 
 # 2. Compile model weights into Little-Endian binary
-./bin/ib-train.exe -data data/support_intents.csv -out weights/support.bin -epochs 50 -lr 0.005 -vocab 250
+./bin/ib-train.exe -data data/support_intents.csv -out weights/support.bin -epochs 50 -lr 0.005 -vocab 250 -seed 42
 ```
+
+##### CLI Flag Reference
+
+| Flag | Default | Valid Range | Operational Role |
+| :--- | :--- | :--- | :--- |
+| **`-data`** | *(Required)* | Valid `.csv` path | Input CSV dataset file containing `text,label` columns. |
+| **`-out`** | `weights/intent.bin` | Valid `.bin` path | Target output file for the compiled Little-Endian binary weights. |
+| **`-epochs`** | `50` | `10 – 300` | Maximum number of AdamW backpropagation training epochs. |
+| **`-lr`** | `0.005` | `0.0001 – 0.05` | AdamW learning rate. Default `0.005` provides fast, stable convergence. |
+| **`-vocab`** | `250` | `100 – 2000` | Target BPE subword vocabulary size. 250 is optimal for 3–10 classes. |
+| **`-seed`** | `42` | Any `int64` | Random seed for deterministic train/validation split and initialization. |
+
+#### 2. Method B: Programmatic Training via Go Code
+
+Train and export binary weights directly inside your Go application without external processes:
+
+```go
+package main
+
+import (
+	"log"
+
+	"intellibranch/pkg/intellibranch"
+)
+
+func main() {
+	// 1. Load samples from CSV
+	samples, err := intellibranch.LoadDatasetCSV("data/support_intents.csv")
+	if err != nil {
+		log.Fatalf("Dataset load error: %v", err)
+	}
+
+	// 2. Configure training hyperparameters
+	config := intellibranch.DefaultTrainConfig()
+	config.Epochs = 50
+	config.LearningRate = 0.005
+	config.VocabSize = 250
+
+	// 3. Execute BPE + AdamW training pipeline
+	model, err := intellibranch.TrainModel(samples, config)
+	if err != nil {
+		log.Fatalf("Training failed: %v", err)
+	}
+
+	// 4. Serialize to Little-Endian binary with SHA-256 integrity hash
+	if err := intellibranch.SaveToFile(model, "weights/support.bin"); err != nil {
+		log.Fatalf("Model export failed: %v", err)
+	}
+
+	log.Println("Model successfully trained and saved!")
+}
+```
+
+#### 3. Training Pipeline Architecture & Phases
+
+```text
+[ CSV Dataset ] ──▶ [ Phase 1: BPE Subword Merge Extraction ] (Builds statistical vocabulary)
+                          │
+                          ▼
+                    [ Phase 2: Stratified 80/20 Train/Val Split ] (Preserves class balance)
+                          │
+                          ▼
+                    [ Phase 3: AdamW Optimization with GELU ] (Weight decay = 0.01)
+                          │
+                          ▼
+                    [ Phase 4: Early Stopping Monitor ] (Halts if Val Loss stagnates for 10 epochs)
+                          │
+                          ▼
+                    [ Phase 5: Little-Endian Binary Serialization ] (SHA-256 checksum injected)
+```
+
+#### 4. Interpreting Training Logs
+
+```text
+2026/09/26 15:47:23 Loading dataset from: data/support_intents.csv
+2026/09/26 15:47:23 Loaded 1015 training samples
+2026/09/26 15:47:23 Starting offline BPE + AdamW training pipeline...
+Epoch  10/50 - Train Loss: 0.0006 (Acc: 100.0%) | Val Loss: 0.3990 (Acc: 94.0%)
+Epoch  20/50 - Train Loss: 0.0002 (Acc: 100.0%) | Val Loss: 0.4485 (Acc: 94.0%)
+[Early Stopping] Triggered at epoch 30 (Train Loss: 0.0001, Val Loss: 0.4753)
+2026/09/26 15:47:25 Serializing trained model to Little-Endian binary: weights/support.bin
+2026/09/26 15:47:25 Training and binary export completed successfully.
+```
+
+- **Train Loss vs Val Loss**: Train accuracy reaching 100% with Val accuracy > 90% indicates strong generalization across unseen phrasing.
+- **Early Stopping**: The engine automatically halts training when validation loss stops improving, preventing overfitting and eliminating wasted CPU cycles. Total training finishes in ~1.5 to 2.0 seconds on standard CPUs.
 
 ### Step 3: Building an HTTP Microservice Router
 
