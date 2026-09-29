@@ -448,8 +448,12 @@ go build -ldflags="-s -w" -o bin/ib-demo.exe ./cmd/ib-demo
 
 ```text
 intellibranch/
+├── bin/
+│   ├── ib-train.exe       # Compiled offline training tool
+│   └── ib-demo.exe        # Compiled 6-domain NeuroGate demonstration driver
 ├── cmd/
-│   └── ib-train/          # Offline BPE + AdamW training CLI source
+│   ├── ib-train/          # Offline BPE + AdamW training CLI source
+│   └── ib-demo/           # 6-Domain NeuroGate demonstration driver source
 ├── docs/
 │   ├── MASTER_PLAN.md     # 6-stage architectural hardening & DoD specification
 │   └── MANUAL.md          # Comprehensive manual, keyword guide & tutorial
@@ -461,14 +465,43 @@ intellibranch/
 │       ├── telemetry.go   # Thread-safe ring buffer for active learning feedback
 │       ├── tokenizer.go   # Pure Go BPE subword tokenizer
 │       ├── trainer.go     # AdamW backprop trainer with positional embedding learning
-│       └── router.go      # 3-Tier router, atomic reload, and pipeline dispatch
+│       ├── router.go      # 3-Tier router, atomic reload, and pipeline dispatch
+│       └── neurogate.go   # 3-Head geometric filter, cosine manifold & symbolic anchors
 ├── weights/
 │   └── .gitkeep           # Directory placeholder for serialized weights
 ├── data/
-│   └── sample_dataset.csv # 1,000+ domain training rows
+│   ├── sample_dataset.csv # 1,000+ domain training rows
+│   ├── demo_cs.csv        # 1,000 CS gateway intent samples (4 classes)
+│   ├── demo_llm.csv       # 1,000 banking LLM bypass samples (4 classes)
+│   ├── demo_sre.csv       # 1,000 high-throughput SRE log samples (4 classes)
+│   ├── demo_iot.csv       # 1,000 offline edge IoT voice samples (4 classes)
+│   ├── demo_cicd.csv      # 1,000 CI/CD build error remediation samples (4 classes)
+│   └── demo_fintech.csv   # 1,000 transaction memo fraud audit samples (4 classes)
 ├── main.go                # Server entrypoint with auto-train bootstrap
 ├── go.mod                 # Go module definition
 └── README.md              # Project documentation
+```
+
+---
+
+## 6-Domain Demonstration Driver (`ib-demo`)
+
+Run the 46-scenario multi-domain validation suite with automatic on-the-fly training:
+
+```bash
+# Run all 6 domains (46 scenarios) in automated showcase mode
+go run ./cmd/ib-demo -domain all
+
+# Or run via compiled standalone binary
+./bin/ib-demo.exe -domain all
+
+# Run individual enterprise domains
+./bin/ib-demo.exe -domain cs       # 1. E-Commerce CS Gateway (XOR & Multi-Intent)
+./bin/ib-demo.exe -domain llm      # 2. Semantic LLM Gateway & Cloud Bypass ($0.00 vs $0.02)
+./bin/ib-demo.exe -domain sre      # 3. High-Throughput SRE Log Triage (0 B/op)
+./bin/ib-demo.exe -domain iot      # 4. Offline Edge IoT Command Dispatcher
+./bin/ib-demo.exe -domain cicd     # 5. Automated CI/CD Failure Triage & Self-Healing
+./bin/ib-demo.exe -domain fintech  # 6. FinTech Transaction Memo Audit & Fraud Prevention
 ```
 
 ---
