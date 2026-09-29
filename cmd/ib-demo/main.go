@@ -83,6 +83,7 @@ func main() {
 				MarginCutoff:      0.15,
 				MaxEntropy:        0.70,
 				PipelineThreshold: 0.25,
+				MinLogSumExp:      7.0,
 			},
 			MinCosine: 0.35,
 			SetupGate: func(g *intellibranch.NeuroGate) {
@@ -139,8 +140,9 @@ func main() {
 				HighThreshold:     0.75,
 				LowThreshold:      0.35,
 				MarginCutoff:      0.15,
-				MaxEntropy:        1.80,
+				MaxEntropy:        1.50,
 				PipelineThreshold: 0.30,
+				MinLogSumExp:      7.5,
 			},
 			MinCosine: 0.35,
 			SetupGate: func(g *intellibranch.NeuroGate) {
@@ -425,10 +427,16 @@ func main() {
 			totalQueries++
 			trace := gate.Inspect(tc.Query)
 			benchLatency := measureBenchmarkLatency(gate, tc.Query, 1000)
+			routedLabel := trace.PredictedLabel
+			if trace.IsPipeline {
+				routedLabel = fmt.Sprintf("Pipeline (%s -> %s)", trace.PredictedLabel, trace.SecondaryLabel)
+			} else if trace.IsOOD {
+				routedLabel = fmt.Sprintf("OOD Fallback (%s)", trace.PredictedLabel)
+			}
 			fmt.Printf("  • Input    : \"%s\"\n", tc.Query)
 			fmt.Printf("    Expect   : %s\n", tc.Expectation)
-			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Cosine: %.4f, Entropy: %.4f, Latency: %.2f μs/op, OOD: %t)\n",
-				trace.PredictedLabel, trace.Confidence*100, trace.CosineSimilarity, trace.Entropy, benchLatency, trace.IsOOD)
+			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Cosine: %.4f, Entropy: %.4f, Energy: %.2f, Latency: %.2f μs/op, OOD: %t)\n",
+				routedLabel, trace.Confidence*100, trace.CosineSimilarity, trace.Entropy, trace.FreeEnergy, benchLatency, trace.IsOOD)
 
 			_ = gate.FilterPipeline(ctx, tc.Query, nil)
 			fmt.Println()

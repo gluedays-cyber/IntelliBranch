@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/bits"
 	"strings"
 	"sync"
@@ -48,6 +49,8 @@ type GateTrace struct {
 	Confidence         float64            `json:"confidence"`
 	Margin             float64            `json:"margin"`
 	Entropy            float64            `json:"entropy"`
+	LogSumExp          float64            `json:"log_sum_exp"`
+	FreeEnergy         float64            `json:"free_energy"`
 	Threshold          float64            `json:"threshold"`
 	IsAmbiguous        bool               `json:"is_ambiguous"`
 	IsPipeline         bool               `json:"is_pipeline"`
@@ -476,6 +479,39 @@ func (g *NeuroGate) Inspect(text string) GateTrace {
 		secondLabel = g.labels[secondIdx]
 	}
 
+	// Compute LogSumExp and Free Energy across logits
+	var maxLogit float32 = adjustedLogits[0]
+	for i := 1; i < numClasses; i++ {
+		if adjustedLogits[i] > maxLogit {
+			maxLogit = adjustedLogits[i]
+		}
+	}
+	var sumExp float64
+	for i := 0; i < numClasses; i++ {
+		sumExp += math.Exp(float64(adjustedLogits[i] - maxLogit))
+	}
+	logSumExp := float64(maxLogit) + math.Log(sumExp)
+	freeEnergy := -logSumExp
+
+	// -------------------------------------------------------------
+	// [Head 1 & Head 3]: Unified OOD & Energy Guard
+	// -------------------------------------------------------------
+	var oodReason string
+
+	if g.hasCentroid && cosineSim < g.minCosineSim {
+		isOOD = true
+		oodReason = fmt.Sprintf("cosine similarity %.4f below domain threshold %.4f (OOD)", cosineSim, g.minCosineSim)
+	} else if g.policy.MinLogSumExp > 0 && logSumExp < g.policy.MinLogSumExp {
+		isOOD = true
+		oodReason = fmt.Sprintf("free energy %.4f (logSumExp %.4f) below in-distribution threshold %.4f (OOD)", freeEnergy, logSumExp, g.policy.MinLogSumExp)
+	} else if entropy > g.policy.MaxEntropy {
+		isOOD = true
+		oodReason = fmt.Sprintf("prediction entropy %.4f exceeds limit %.4f (OOD)", entropy, g.policy.MaxEntropy)
+	} else if unkRatio >= 0.5 {
+		isOOD = true
+		oodReason = fmt.Sprintf("excessive unknown tokens (%.2f >= 0.50)", unkRatio)
+	}
+
 	trace := GateTrace{
 		InputText:          text,
 		TokenIDs:           tokens,
@@ -491,26 +527,40 @@ func (g *NeuroGate) Inspect(text string) GateTrace {
 		Confidence:         calibratedConfidence,
 		Margin:             margin,
 		Entropy:            entropy,
+		LogSumExp:          logSumExp,
+		FreeEnergy:         freeEnergy,
 		Threshold:          g.policy.HighThreshold,
 		LatencyMicros:      time.Since(start).Microseconds(),
 	}
 
 	// Routing tier evaluation
 	if isOOD {
+		trace.IsOOD = true
 		trace.IsFallback = true
-		trace.FallbackReason = fmt.Sprintf("cosine similarity %.4f below domain threshold %.4f (OOD)", cosineSim, g.minCosineSim)
-	} else if unkRatio >= 0.5 {
-		trace.IsFallback = true
-		trace.FallbackReason = fmt.Sprintf("excessive unknown tokens (%.2f >= 0.50)", unkRatio)
+		trace.FallbackReason = oodReason
 	} else if trace.Confidence < g.policy.LowThreshold {
 		trace.IsFallback = true
 		trace.FallbackReason = fmt.Sprintf("confidence %.4f below low threshold %.4f", trace.Confidence, g.policy.LowThreshold)
-	} else if entropy > g.policy.MaxEntropy {
-		trace.IsFallback = true
-		trace.FallbackReason = fmt.Sprintf("prediction entropy %.4f exceeds limit %.4f (OOD)", entropy, g.policy.MaxEntropy)
 	} else {
-		if secondLabel != "" && calibratedSecond >= g.policy.PipelineThreshold {
-			trace.IsPipeline = true
+		// Multi-intent pipeline evaluation (Softmax probability OR dual-anchor co-activation)
+		if secondLabel != "" {
+			pipeKey := pipelineKey(bestLabel, secondLabel)
+			_, hasPipeline := g.pipelines[pipeKey]
+			var primaryAnchors, secondaryAnchors bool
+			for _, rule := range g.anchorRules {
+				if (textBitmask & rule.Mask) != 0 {
+					if rule.ClassIndex == bestIdx {
+						primaryAnchors = true
+					}
+					if rule.ClassIndex == secondIdx {
+						secondaryAnchors = true
+					}
+				}
+			}
+			hasBothAnchors := primaryAnchors && secondaryAnchors
+			if calibratedSecond >= g.policy.PipelineThreshold || (hasBothAnchors && hasPipeline) {
+				trace.IsPipeline = true
+			}
 		}
 		if trace.Confidence < g.policy.HighThreshold || margin < g.policy.MarginCutoff {
 			trace.IsAmbiguous = true
@@ -627,7 +677,23 @@ func (g *NeuroGate) evaluateFast(text string) gateEvaluation {
 	margin := calibratedConfidence - calibratedSecond
 	entropy := float64(computeEntropy(probs[:numClasses]))
 
-	if unkRatio >= 0.5 || calibratedConfidence < g.policy.LowThreshold || entropy > g.policy.MaxEntropy {
+	// LogSumExp / Free Energy evaluation
+	var maxLogit float32 = adjustedLogits[0]
+	for i := 1; i < numClasses; i++ {
+		if adjustedLogits[i] > maxLogit {
+			maxLogit = adjustedLogits[i]
+		}
+	}
+	var sumExp float64
+	for i := 0; i < numClasses; i++ {
+		sumExp += math.Exp(float64(adjustedLogits[i] - maxLogit))
+	}
+	logSumExp := float64(maxLogit) + math.Log(sumExp)
+
+	if (g.policy.MinLogSumExp > 0 && logSumExp < g.policy.MinLogSumExp) ||
+		unkRatio >= 0.5 ||
+		calibratedConfidence < g.policy.LowThreshold ||
+		entropy > g.policy.MaxEntropy {
 		return gateEvaluation{isFallback: true, primaryIdx: bestIdx, secondaryIdx: secondIdx}
 	}
 
@@ -636,8 +702,24 @@ func (g *NeuroGate) evaluateFast(text string) gateEvaluation {
 		secondaryIdx: secondIdx,
 	}
 
-	if secondIdx >= 0 && calibratedSecond >= g.policy.PipelineThreshold {
-		eval.isPipeline = true
+	if secondIdx >= 0 {
+		pipeKey := pipelineKey(g.labels[bestIdx], g.labels[secondIdx])
+		_, hasPipeline := g.pipelines[pipeKey]
+		var primaryAnchors, secondaryAnchors bool
+		for _, rule := range g.anchorRules {
+			if (textBitmask & rule.Mask) != 0 {
+				if rule.ClassIndex == bestIdx {
+					primaryAnchors = true
+				}
+				if rule.ClassIndex == secondIdx {
+					secondaryAnchors = true
+				}
+			}
+		}
+		hasBothAnchors := primaryAnchors && secondaryAnchors
+		if calibratedSecond >= g.policy.PipelineThreshold || (hasBothAnchors && hasPipeline) {
+			eval.isPipeline = true
+		}
 	}
 	if calibratedConfidence < g.policy.HighThreshold || margin < g.policy.MarginCutoff {
 		eval.isAmbiguous = true
@@ -840,7 +922,23 @@ func (g *NeuroGate) evaluateFastTokens(tokens []uint32) gateEvaluation {
 	margin := calibratedConfidence - calibratedSecond
 	entropy := float64(computeEntropy(probs[:numClasses]))
 
-	if unkRatio >= 0.5 || calibratedConfidence < g.policy.LowThreshold || entropy > g.policy.MaxEntropy {
+	// LogSumExp evaluation
+	var maxLogit float32 = adjustedLogits[0]
+	for i := 1; i < numClasses; i++ {
+		if adjustedLogits[i] > maxLogit {
+			maxLogit = adjustedLogits[i]
+		}
+	}
+	var sumExp float64
+	for i := 0; i < numClasses; i++ {
+		sumExp += math.Exp(float64(adjustedLogits[i] - maxLogit))
+	}
+	logSumExp := float64(maxLogit) + math.Log(sumExp)
+
+	if (g.policy.MinLogSumExp > 0 && logSumExp < g.policy.MinLogSumExp) ||
+		unkRatio >= 0.5 ||
+		calibratedConfidence < g.policy.LowThreshold ||
+		entropy > g.policy.MaxEntropy {
 		return gateEvaluation{isFallback: true, primaryIdx: bestIdx, secondaryIdx: secondIdx}
 	}
 
@@ -849,8 +947,24 @@ func (g *NeuroGate) evaluateFastTokens(tokens []uint32) gateEvaluation {
 		secondaryIdx: secondIdx,
 	}
 
-	if secondIdx >= 0 && calibratedSecond >= g.policy.PipelineThreshold {
-		eval.isPipeline = true
+	if secondIdx >= 0 {
+		pipeKey := pipelineKey(g.labels[bestIdx], g.labels[secondIdx])
+		_, hasPipeline := g.pipelines[pipeKey]
+		var primaryAnchors, secondaryAnchors bool
+		for _, rule := range g.anchorRules {
+			if (textBitmask & rule.Mask) != 0 {
+				if rule.ClassIndex == bestIdx {
+					primaryAnchors = true
+				}
+				if rule.ClassIndex == secondIdx {
+					secondaryAnchors = true
+				}
+			}
+		}
+		hasBothAnchors := primaryAnchors && secondaryAnchors
+		if calibratedSecond >= g.policy.PipelineThreshold || (hasBothAnchors && hasPipeline) {
+			eval.isPipeline = true
+		}
 	}
 	if calibratedConfidence < g.policy.HighThreshold || margin < g.policy.MarginCutoff {
 		eval.isAmbiguous = true

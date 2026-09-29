@@ -19,11 +19,12 @@ type PipelineAction func(ctx context.Context, primary string, secondary string, 
 
 // DispatchPolicy defines the 3-tier confidence criteria, multi-intent threshold, and OOD entropy boundary.
 type DispatchPolicy struct {
-	HighThreshold     float64 `json:"high_threshold"`     // Minimum confidence for definite execution (default: 0.75)
-	LowThreshold      float64 `json:"low_threshold"`      // Minimum confidence below which request is isolated to Fallback (default: 0.40)
-	MarginCutoff      float64 `json:"margin_cutoff"`      // Minimum required gap between Top-1 and Top-2 (default: 0.15)
-	MaxEntropy        float64 `json:"max_entropy"`        // Maximum allowable prediction entropy before triggering OOD Fallback (default: 2.0)
-	PipelineThreshold float64 `json:"pipeline_threshold"` // Minimum secondary confidence to qualify for multi-intent pipeline (default: 0.30)
+	HighThreshold     float64 `json:"high_threshold"`      // Minimum confidence for definite execution (default: 0.75)
+	LowThreshold      float64 `json:"low_threshold"`       // Minimum confidence below which request is isolated to Fallback (default: 0.40)
+	MarginCutoff      float64 `json:"margin_cutoff"`       // Minimum required gap between Top-1 and Top-2 (default: 0.15)
+	MaxEntropy        float64 `json:"max_entropy"`         // Maximum allowable prediction entropy before triggering OOD Fallback (default: 2.0)
+	PipelineThreshold float64 `json:"pipeline_threshold"`  // Minimum secondary confidence to qualify for multi-intent pipeline (default: 0.30)
+	MinLogSumExp      float64 `json:"min_log_sum_exp,omitempty"` // Minimum log-sum-exp energy boundary before OOD isolation (0 disables)
 }
 
 // DefaultDispatchPolicy creates standard production-ready 3-tier routing criteria.
@@ -34,6 +35,7 @@ func DefaultDispatchPolicy() DispatchPolicy {
 		MarginCutoff:      0.15,
 		MaxEntropy:        2.0,
 		PipelineThreshold: 0.30,
+		MinLogSumExp:      0.0,
 	}
 }
 
