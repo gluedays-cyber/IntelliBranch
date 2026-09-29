@@ -300,4 +300,23 @@ func (m *InferenceModel) Predict(text string) (string, float64, error) {
 	return label, score, nil
 }
 
+// PredictFeatures fills the provided outPooled and outLogits slices with zero allocations.
+func (m *InferenceModel) PredictFeatures(tokenIDs []uint32, outPooled []float32, outLogits []float32) error {
+	buf := m.bufPool.Get().(*inferenceBuffer)
+	defer m.bufPool.Put(buf)
+
+	if err := m.forwardInternal(tokenIDs, m.Temperature, buf); err != nil {
+		return err
+	}
+
+	if len(outPooled) >= len(buf.pooled) {
+		copy(outPooled, buf.pooled)
+	}
+	if len(outLogits) >= len(buf.logits) {
+		copy(outLogits, buf.logits)
+	}
+	return nil
+}
+
+
 

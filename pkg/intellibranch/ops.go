@@ -189,3 +189,37 @@ func Softmax(logits []float32, temperature float32, out []float32) error {
 
 	return nil
 }
+
+// L2Normalize computes out = vec / ||vec||2 with numerical safety.
+// Returns the original Euclidean norm.
+func L2Normalize(vec []float32, out []float32) float32 {
+	var sumSq float64
+	for _, v := range vec {
+		sumSq += float64(v * v)
+	}
+	norm := float32(math.Sqrt(sumSq))
+	if norm < 1e-7 || math.IsNaN(float64(norm)) || math.IsInf(float64(norm), 0) {
+		for i := range out {
+			out[i] = 0
+		}
+		return 0
+	}
+	invNorm := 1.0 / norm
+	for i, v := range vec {
+		out[i] = v * invNorm
+	}
+	return norm
+}
+
+// DotProduct computes the dot product between two float32 slices without allocations.
+func DotProduct(a, b []float32) float32 {
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	var sum float32
+	for i := 0; i < n; i++ {
+		sum += a[i] * b[i]
+	}
+	return sum
+}

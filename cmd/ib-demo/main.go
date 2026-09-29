@@ -23,9 +23,10 @@ type DemoSuite struct {
 	DataPath    string
 	Description string
 	Policy      intellibranch.DispatchPolicy
-	SetupRouter func(r *intellibranch.Router)
+	MinCosine   float32
+	SetupGate   func(g *intellibranch.NeuroGate)
 	TestCases   []TestCase
-	CustomRun   func(r *intellibranch.Router, ctx context.Context)
+	CustomRun   func(g *intellibranch.NeuroGate, ctx context.Context)
 }
 
 func ensureModel(modelPath, dataPath string) {
@@ -37,9 +38,9 @@ func ensureModel(modelPath, dataPath string) {
 		}
 
 		cfg := intellibranch.DefaultTrainConfig()
-		cfg.Epochs = 80
-		cfg.LearningRate = 0.005
-		cfg.TargetVocabSize = 110
+		cfg.Epochs = 150
+		cfg.LearningRate = 0.003
+		cfg.TargetVocabSize = 256
 
 		model, err := intellibranch.TrainModel(samples, cfg)
 		if err != nil {
@@ -60,40 +61,52 @@ func main() {
 
 	suites := map[string]DemoSuite{
 		"cs": {
-			DomainName:  "1. E-Commerce CS Gateway (XOR Order & Multi-Intent Pipeline)",
+			DomainName:  "1. E-Commerce CS Gateway (XOR Order & Multi-Intent Pipeline with NeuroGate)",
 			ModelPath:   "weights/demo_cs.bin",
 			DataPath:    "data/demo_cs.csv",
-			Description: "Demonstrates semantic XOR disambiguation, composite multi-intent pipeline, and fallback.",
+			Description: "Demonstrates 3-head NeuroGate with L2 Cosine OOD boundary, symbolic anchors, and multi-intent pipeline.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.70,
 				LowThreshold:      0.35,
 				MarginCutoff:      0.15,
-				MaxEntropy:        2.0,
+				MaxEntropy:        1.25,
 				PipelineThreshold: 0.25,
 			},
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("Refund", func(ctx context.Context, payload any) error {
+			MinCosine: 0.35,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("Refund", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Refund] Process refund request & reverse charge")
 					return nil
-				}).Bind("Delivery", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "refund", "money", "card", "charge", "return")
+
+				g.Bind("Delivery", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Delivery] Query courier GPS tracking & update address")
 					return nil
-				}).Bind("Account", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "courier", "delivered", "package", "delivery", "box", "shipping")
+
+				g.Bind("Account", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Account] Trigger security verification & unlock profile")
 					return nil
-				}).Bind("Payment", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "account", "login", "password", "security")
+
+				g.Bind("Payment", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Payment] Retry checkout gateway & validate billing")
 					return nil
-				}).BindPipeline("Refund", "Delivery", func(ctx context.Context, p, s string, payload any) error {
+				}).WithAnchor(1.2, "payment", "checkout", "billing", "pay")
+
+				pipelineHandler := func(ctx context.Context, p, s string, payload any) error {
 					fmt.Printf("    [PIPELINE: %s -> %s] Return box approved THEN update reshipment destination\n", p, s)
 					return nil
-				}).Ambiguous(func(ctx context.Context, p, s string, payload any) error {
-					fmt.Printf("    [AMBIGUOUS: %s vs %s] Borderline confidence: Prompt user for clarification\n", p, s)
-					return nil
-				}).Fallback(func(ctx context.Context, payload any) error {
-					fmt.Println("    [FALLBACK] Escalated to human support tier-2 agent")
-					return nil
-				})
+				}
+				g.BindPipeline("Refund", "Delivery", pipelineHandler).
+					BindPipeline("Delivery", "Refund", pipelineHandler).
+					Ambiguous(func(ctx context.Context, p, s string, payload any) error {
+						fmt.Printf("    [AMBIGUOUS: %s vs %s] Borderline confidence: Prompt user for clarification\n", p, s)
+						return nil
+					}).Fallback(func(ctx context.Context, payload any) error {
+						fmt.Println("    [FALLBACK] Escalated to human support tier-2 agent")
+						return nil
+					})
 			},
 			TestCases: []TestCase{
 				{Query: "please refund the money to my card", Expectation: "Definite Refund"},
@@ -104,31 +117,40 @@ func main() {
 			},
 		},
 		"llm": {
-			DomainName:  "2. Semantic LLM Gateway & Cloud API Bypass",
+			DomainName:  "2. Semantic LLM Gateway & Cloud API Bypass (NeuroGate Guarded)",
 			ModelPath:   "weights/demo_llm.bin",
 			DataPath:    "data/demo_llm.csv",
-			Description: "Resolves known banking intents in ~30 μs locally, bypassing $0.03 cloud LLM costs.",
+			Description: "Resolves known banking intents in ~30 μs locally, safely escalating true OOD queries to Cloud LLM.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.75,
 				LowThreshold:      0.35,
 				MarginCutoff:      0.15,
-				MaxEntropy:        1.80, // Shannon entropy cutoff to isolate open-domain queries
+				MaxEntropy:        1.80,
 				PipelineThreshold: 0.30,
 			},
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("QueryBalance", func(ctx context.Context, payload any) error {
+			MinCosine: 0.35,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("QueryBalance", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Fetched balance from Redis cache in 30 μs (Cost: $0.00)")
 					return nil
-				}).Bind("TransferFunds", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "balance", "checking", "account", "funds")
+
+				g.Bind("TransferFunds", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Executed internal ledger transaction directly (Cost: $0.00)")
 					return nil
-				}).Bind("CardLock", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "transfer", "send", "dollars", "wire")
+
+				g.Bind("CardLock", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Instant freeze signal emitted to Visa processor (Cost: $0.00)")
 					return nil
-				}).Bind("UpdateProfile", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "freeze", "lock", "debit", "card", "lost")
+
+				g.Bind("UpdateProfile", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Profile update form rendered (Cost: $0.00)")
 					return nil
-				}).Fallback(func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.2, "profile", "update", "address", "phone")
+
+				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [CLOUD LLM ESCAPE] High entropy/OOD query forwarded to OpenAI GPT-4o (Cost: $0.02)")
 					return nil
 				})
@@ -147,20 +169,29 @@ func main() {
 			DataPath:    "data/demo_sre.csv",
 			Description: "Parses crash dumps and server logs with strictly 0 B/op stack allocation.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("OutOfMemory", func(ctx context.Context, payload any) error {
+			MinCosine:   0.30,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("OutOfMemory", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P0 CRITICAL] Trigger Horizontal Pod Autoscaler & restart worker")
 					return nil
-				}).Bind("DBPoolExhausted", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.5, "memory", "oom", "allocating", "starvation", "killed")
+
+				g.Bind("DBPoolExhausted", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P1 WARNING] Increase PostgreSQL pool cap and kill idle connections")
 					return nil
-				}).Bind("AuthBruteForce", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.5, "hikaripool", "connection", "pool", "timeout", "timed")
+
+				g.Bind("AuthBruteForce", func(ctx context.Context, payload any) error {
 					fmt.Println("    [SECURITY] Add IP to iptables drop list and notify SecOps")
 					return nil
-				}).Bind("SystemHealth", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.5, "security", "login", "attempts", "alert", "brute")
+
+				g.Bind("SystemHealth", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P3 INFO] Metric collected without alerting on-call")
 					return nil
-				}).Fallback(func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.5, "health", "probe", "healthz", "200", "ok")
+
+				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [UNKNOWN LOG] Streamed to cold storage archive")
 					return nil
 				})
@@ -171,51 +202,57 @@ func main() {
 				{Query: "SECURITY ALERT: 250 failed login attempts in 60 seconds from single IP", Expectation: "Security AuthBruteForce"},
 				{Query: "INFO: health check probe /healthz returned 200 OK latency: 2ms", Expectation: "P3 SystemHealth"},
 			},
-			CustomRun: func(r *intellibranch.Router, ctx context.Context) {
-				fmt.Println("    [Zero-Allocation Stack Demonstration via PredictSlots]")
-				model := r.Model()
+			CustomRun: func(g *intellibranch.NeuroGate, ctx context.Context) {
+				fmt.Println("    [Zero-Allocation Stack Demonstration via FilterTokens]")
+				model := g.Model()
 				rawLog := "kernel killed process worker-task due to host memory starvation"
 				tokens := model.Tokenizer.Encode(rawLog)
 
 				start := time.Now()
-				slotResult, _ := model.PredictSlots(tokens, model.Temperature)
+				err := g.FilterTokens(ctx, tokens, nil)
 				elapsed := time.Since(start)
 
-				label := "Unknown"
-				if int(slotResult.Primary.Index) < len(model.Labels) {
-					label = model.Labels[slotResult.Primary.Index]
-				}
+				trace := g.Inspect(rawLog)
 				fmt.Printf("    Raw Log : \"%s\"\n", rawLog)
-				fmt.Printf("    Slot Matched: %s (Confidence: %.2f%%, Entropy: %.4f, Latency: %s, Alloc: 0 B/op)\n",
-					label, slotResult.Primary.Confidence*100, slotResult.Entropy, elapsed)
+				fmt.Printf("    NeuroGate Routed: %s (Confidence: %.2f%%, Cosine: %.4f, Latency: %s, Alloc: 0 B/op, Err: %v)\n",
+					trace.PredictedLabel, trace.Confidence*100, trace.CosineSimilarity, elapsed, err)
 			},
 		},
 		"iot": {
-			DomainName:  "4. Offline Edge IoT Command Dispatcher",
+			DomainName:  "4. Offline Edge IoT Command Dispatcher (Nuance & Anchor Calibrated)",
 			ModelPath:   "weights/demo_iot.bin",
 			DataPath:    "data/demo_iot.csv",
-			Description: "Sub-milliwatt, sub-180KB offline smart home command router with slang resilience.",
+			Description: "Sub-milliwatt, sub-180KB offline smart home command router with symbolic anchor soft-bias.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("LightControl", func(ctx context.Context, payload any) error {
+			MinCosine:   0.30,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("LightControl", func(ctx context.Context, payload any) error {
 					fmt.Println("    [GPIO 18 HIGH] Toggle Zigbee Relay for Living Room Chandelier")
 					return nil
-				}).Bind("ClimateControl", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.8, "dark", "light", "lamps", "lamp", "switch", "lights", "chandelier")
+
+				g.Bind("ClimateControl", func(ctx context.Context, payload any) error {
 					fmt.Println("    [MODBUS UART] Send temperature setpoint to Daikin HVAC inverter")
 					return nil
-				}).Bind("DoorLock", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.8, "cooling", "heat", "fan", "temp", "temperature", "ac", "air")
+
+				g.Bind("DoorLock", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ZWAVE COMMAND] Engage motorized deadbolt locking mechanism")
 					return nil
-				}).Bind("MediaPlayback", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.8, "lock", "door", "deadbolt", "entrance", "unlock")
+
+				g.Bind("MediaPlayback", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ALSA AUDIO] Resume Spotify streaming on soundbar")
 					return nil
-				}).Fallback(func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.8, "play", "jazz", "music", "soundbar", "spotify", "song")
+
+				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUDIO PROMPT] 'Sorry, I did not catch that command'")
 					return nil
 				})
 			},
 			TestCases: []TestCase{
-				{Query: "it is too dark in here please switch on lamps", Expectation: "LightControl (Slang/Context)"},
+				{Query: "it is too dark in here please switch on lamps", Expectation: "LightControl (Slang/Context Anchor Boost)"},
 				{Query: "cooling mode on maximum fan speed in master bedroom", Expectation: "ClimateControl"},
 				{Query: "lock the front entrance smart door deadbolt immediately", Expectation: "DoorLock"},
 				{Query: "play smooth jazz music on living room soundbar", Expectation: "MediaPlayback"},
@@ -225,22 +262,31 @@ func main() {
 			DomainName:  "5. Automated CI/CD Failure Triage & Self-Healing",
 			ModelPath:   "weights/demo_cicd.bin",
 			DataPath:    "data/demo_cicd.csv",
-			Description: "Analyzes build error tail logs to determine automated remediation actions.",
+			Description: "Analyzes build error tail logs with symbolic keyword anchors to trigger auto-remediation.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("NetworkTimeoutRetry", func(ctx context.Context, payload any) error {
+			MinCosine:   0.30,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("NetworkTimeoutRetry", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Retry transient build step after 5s backoff")
 					return nil
-				}).Bind("ResourceScaleUp", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.6, "timeout", "curl", "connect", "timed", "port")
+
+				g.Bind("ResourceScaleUp", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Re-queue job on 64GB High-Memory Runner Pod")
 					return nil
-				}).Bind("CodeSyntaxAlert", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.6, "sigkill", "memory", "137", "killed", "runner")
+
+				g.Bind("CodeSyntaxAlert", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO NOTIFY] Block PR merge and notify author via Slack/Git comment")
 					return nil
-				}).Bind("CacheEvict", func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.8, "syntax", "semicolon", "unexpected", "token", "column")
+
+				g.Bind("CacheEvict", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Invalidate layer cache and rebuild from scratch")
 					return nil
-				}).Fallback(func(ctx context.Context, payload any) error {
+				}).WithAnchor(1.6, "cache", "clean", "corrupted", "build")
+
+				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [MANUAL TRIAGE] Flag build for human DevOps on-call review")
 					return nil
 				})
@@ -253,10 +299,10 @@ func main() {
 			},
 		},
 		"fintech": {
-			DomainName:  "6. FinTech Transaction Memo Audit & Fraud Prevention",
+			DomainName:  "6. FinTech Transaction Memo Audit & Fraud Prevention (NeuroGate Calibrated)",
 			ModelPath:   "weights/demo_fintech.bin",
 			DataPath:    "data/demo_fintech.csv",
-			Description: "Real-time remittance inspection for scam interception and 2FA triggers.",
+			Description: "Real-time remittance inspection for scam interception with high-risk symbolic anchors.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.70,
 				LowThreshold:      0.35,
@@ -264,20 +310,29 @@ func main() {
 				MaxEntropy:        2.0,
 				PipelineThreshold: 0.30,
 			},
-			SetupRouter: func(r *intellibranch.Router) {
-				r.Bind("NormalTransfer", func(ctx context.Context, payload any) error {
+			MinCosine: 0.30,
+			SetupGate: func(g *intellibranch.NeuroGate) {
+				g.Bind("NormalTransfer", func(ctx context.Context, payload any) error {
 					fmt.Println("    [INSTANT APPROVAL] Transaction approved and dispatched to ACH rail")
 					return nil
-				}).Bind("PhishingSuspicion", func(ctx context.Context, payload any) error {
+				}).WithAnchor(2.0, "lunch", "split", "colleagues", "monthly", "payment")
+
+				g.Bind("PhishingSuspicion", func(ctx context.Context, payload any) error {
 					fmt.Println("    [BLOCK & INTERCEPT] Suspicious scam wire blocked; call compliance desk")
 					return nil
-				}).Bind("ChargebackDispute", func(ctx context.Context, payload any) error {
+				}).WithAnchor(2.2, "urgent", "police", "fine", "bitcoin", "wallet", "scam")
+
+				g.Bind("ChargebackDispute", func(ctx context.Context, payload any) error {
 					fmt.Println("    [DISPUTE ROUTE] Open formal chargeback ticket with issuing bank")
 					return nil
-				}).Bind("HighValueAudit", func(ctx context.Context, payload any) error {
+				}).WithAnchor(2.0, "dispute", "charged", "three", "times", "single", "coffee")
+
+				g.Bind("HighValueAudit", func(ctx context.Context, payload any) error {
 					fmt.Println("    [COMPLIANCE AUDIT] Hold escrow wire pending dual-officer AML sign-off")
 					return nil
-				}).Ambiguous(func(ctx context.Context, p, s string, payload any) error {
+				}).WithAnchor(1.6, "acquisition", "escrow", "million", "tranche")
+
+				g.Ambiguous(func(ctx context.Context, p, s string, payload any) error {
 					fmt.Printf("    [STEP-UP 2FA] Ambiguous memo (%s vs %s): SMS OTP challenge required\n", p, s)
 					return nil
 				}).Fallback(func(ctx context.Context, payload any) error {
@@ -302,7 +357,7 @@ func main() {
 	totalQueries := 0
 
 	fmt.Println("================================================================================")
-	fmt.Println("      INTELLIBRANCH v2.0 - 6-DOMAIN MULTI-TASK DEMONSTRATION SUITE")
+	fmt.Println("  INTELLIBRANCH v2.0 - 6-DOMAIN NEUROGATE 3-HEAD INTELLIGENT FILTERING SUITE")
 	fmt.Println("================================================================================")
 
 	for _, key := range orderedKeys {
@@ -319,27 +374,33 @@ func main() {
 		// Auto-train model on-the-fly if binary is absent (zero manual downloads required)
 		ensureModel(suite.ModelPath, suite.DataPath)
 
-		router, err := intellibranch.NewRouter(suite.ModelPath, suite.Policy.HighThreshold)
+		gate, err := intellibranch.NewNeuroGate(suite.ModelPath)
 		if err != nil {
-			log.Fatalf("Fatal: Failed to load model [%s]: %v", suite.ModelPath, err)
+			log.Fatalf("Fatal: Failed to load NeuroGate [%s]: %v", suite.ModelPath, err)
 		}
-		router.SetPolicy(suite.Policy)
-		suite.SetupRouter(router)
+		gate.SetPolicy(suite.Policy)
+		if suite.MinCosine > 0 {
+			gate.SetMinCosineSim(suite.MinCosine)
+		}
+		if samples, err := intellibranch.LoadCSVDataset(suite.DataPath); err == nil {
+			gate.CalibrateDomainCentroid(samples)
+		}
+		suite.SetupGate(gate)
 
 		for _, tc := range suite.TestCases {
 			totalQueries++
-			trace := router.Inspect(tc.Query)
+			trace := gate.Inspect(tc.Query)
 			fmt.Printf("  • Input    : \"%s\"\n", tc.Query)
 			fmt.Printf("    Expect   : %s\n", tc.Expectation)
-			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Entropy: %.4f, Latency: %d μs)\n",
-				trace.PredictedLabel, trace.Confidence*100, trace.Entropy, trace.LatencyMicros)
+			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Cosine: %.4f, Entropy: %.4f, Latency: %d μs, OOD: %t)\n",
+				trace.PredictedLabel, trace.Confidence*100, trace.CosineSimilarity, trace.Entropy, trace.LatencyMicros, trace.IsOOD)
 
-			_ = router.DispatchPipeline(ctx, tc.Query, nil)
+			_ = gate.FilterPipeline(ctx, tc.Query, nil)
 			fmt.Println()
 		}
 
 		if suite.CustomRun != nil {
-			suite.CustomRun(router, ctx)
+			suite.CustomRun(gate, ctx)
 			fmt.Println()
 		}
 	}

@@ -21,6 +21,7 @@ This guide provides pure Go engineers with a deep-dive technical manual and hand
    - [Atomic Hot-Swap: `Reload` & `SwapModel`](#39-reload--swapmodel)
    - [Active Learning: `EnableTelemetry` & `DrainTelemetry`](#310-enabletelemetry--draintelemetry)
    - [Zero Allocations: `PredictSlots`](#311-predictslots-zero-allocation-inference)
+   - [NeuroGate 3-Head Engine: `NewNeuroGate`](#312-neurogate-3-head-geometric-intelligent-filter-engine)
 4. [End-to-End Production Tutorial](#4-end-to-end-production-tutorial)
    - [Step 1: AI Design — Structuring Domain Knowledge (`dataset.csv`)](#step-1-ai-design--structuring-domain-knowledge-datasetcsv)
    - [Step 2: Building Your Own AI — Training & Model Generation (`ib-train`)](#step-2-building-your-own-ai--training--model-generation-ib-train)
@@ -284,6 +285,77 @@ Direct low-level inference primitive writing Top-1/Top-2 slots directly into cal
 
 ```go
 func (m *InferenceModel) PredictSlots(text string, out *StaticInferenceResult) error
+```
+
+---
+
+### 3.12. `NeuroGate`: 3-Head Geometric Intelligent Filter Engine
+
+`NeuroGate` wraps a single shared neural backbone with three orthogonal geometric and symbolic heads, solving model overconfidence, Out-of-Domain (OOD) leakage, and dialectal ambiguity without training separate networks or allocating heap memory.
+
+```go
+type NeuroGate struct { ... }
+
+func NewNeuroGate(modelPath string) (*NeuroGate, error)
+func NewNeuroGateWithModel(model *InferenceModel) *NeuroGate
+```
+
+#### Key API Methods
+
+| Method | Signature | Description |
+| :--- | :--- | :--- |
+| **`Bind`** | `.Bind(label string, handler RouteAction) *GateRouteBuilder` | Registers an action handler and returns a builder for symbolic anchor chaining. |
+| **`WithAnchor`** | `.WithAnchor(weight float32, keywords ...string) *GateRouteBuilder` | Maps keywords to 64-bit bitmasks, injecting an additive logit bias scaled by matched bits in 1 CPU cycle. |
+| **`CalibrateDomainCentroid`** | `.CalibrateDomainCentroid(samples []DataSample) *NeuroGate` | Computes the true L2 manifold centroid of domain sentences for geometric OOD gating. |
+| **`SetDomainBoundary`** | `.SetDomainBoundary(centroid []float32, minCosine float32) *NeuroGate` | Manually configures the reference L2 centroid and minimum cosine similarity threshold. |
+| **`Filter`** | `.Filter(ctx context.Context, text string, payload any) error` | Fast-path routing evaluating all 3 heads with minimal allocations (~5 μs). |
+| **`FilterTokens`** | `.FilterTokens(ctx context.Context, tokens []uint32, payload any) error` | Zero-allocation hot-path execution with strictly **0 B/op and 0 allocs/op (~28 μs)**. |
+| **`FilterPipeline`** | `.FilterPipeline(ctx context.Context, text string, payload any) error` | Evaluates requests supporting multi-intent composite pipelines and ambiguous branches. |
+| **`Inspect`** | `.Inspect(text string) GateTrace` | Returns full whitebox diagnostics including L2 cosine distance, triggered anchors, and entropy. |
+
+#### Complete NeuroGate Production Recipe
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"intellibranch/pkg/intellibranch"
+)
+
+func main() {
+	gate, err := intellibranch.NewNeuroGate("weights/demo_iot.bin")
+	if err != nil {
+		log.Fatalf("Failed to init NeuroGate: %v", err)
+	}
+
+	// 1. Calibrate manifold centroid from training samples
+	samples, _ := intellibranch.LoadCSVDataset("data/demo_iot.csv")
+	gate.CalibrateDomainCentroid(samples).SetMinCosineSim(0.35)
+
+	// 2. Bind route actions with symbolic anchor soft-biases
+	gate.Bind("LightControl", func(ctx context.Context, payload any) error {
+		fmt.Println("[ACTION: LightControl] Switched living room chandelier")
+		return nil
+	}).WithAnchor(1.8, "dark", "light", "lamps", "lamp", "switch")
+
+	gate.Bind("ClimateControl", func(ctx context.Context, payload any) error {
+		fmt.Println("[ACTION: ClimateControl] Adjusted HVAC temperature setpoint")
+		return nil
+	}).WithAnchor(1.8, "cooling", "heat", "fan", "temp", "ac")
+
+	gate.Fallback(func(ctx context.Context, payload any) error {
+		fmt.Println("[ACTION: Fallback] Isolated OOD query or ambiguous command")
+		return nil
+	})
+
+	// 3. Dispatch queries with zero-alloc hot path
+	ctx := context.Background()
+	_ = gate.Filter(ctx, "it is too dark in here please switch on lamps", nil)
+}
 ```
 
 ---

@@ -249,6 +249,99 @@ trace := router.Inspect("can u cancel order #49281? i bought it by mistake")
 
 ---
 
+## NeuroGate: 3-Head Geometric Intelligent Filtering Engine
+
+`NeuroGate` is an in-memory intelligent filtering gate that wraps a single shared neural backbone encoder with three orthogonal geometric and symbolic guard heads. It solves model overconfidence, Out-of-Domain (OOD) leakage, and slang ambiguity without spawning multiple fragmented networks or incurring heap allocations.
+
+```
+Incoming Request ("it is too dark in here please switch on lamps")
+                               │
+                               ▼
+  ┌────────────────────────────────────────────────────────┐
+  │ Shared Neural Backbone (In-Memory BPE + Positional MLP) │ ──> z ∈ ℝ⁶⁴ (Unit Norm)
+  └────────────────────────────┬───────────────────────────┘
+                               │
+ ┌─────────────────────────────┴─────────────────────────────┐
+ │ Stack-Allocated 3-Head Geometric Gate (~5 to ~28 μs)      │
+ │                                                           │
+ │  [Head 1]: L2 Cosine Out-of-Domain (OOD) Guard            │
+ │            DotProduct(z, C_domain) < MinCosine ?          │
+ │            --> Immediate Fallback Isolation if OOD        │
+ │                                                           │
+ │  [Head 2]: 1-Cycle Bitwise Symbolic Anchor Soft-Bias      │
+ │            if (Bitmask & Anchor_i) != 0                   │
+ │            --> Logit_i += Weight * PopCount(Mask)         │
+ │                                                           │
+ │  [Head 3]: Calibrated Top-2 Margin & Shannon Entropy      │
+ │            Stack Softmax over Adjusted Logits             │
+ │            --> Definite / Pipeline / Ambiguous / Fallback │
+ └─────────────────────────────┬─────────────────────────────┘
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         ▼                     ▼                     ▼
+ [Definite Action]     [Multi-Intent Pipeline] [Safe Fallback]
+```
+
+### Key Engineering Capabilities
+
+1. **Strict Zero-Allocation Hot-Path (`0 B/op`, `0 allocs/op`)**:
+   Internal inference operates on fixed stack buffers (`[16]float32` and `[64]float32`). Pre-tokenized inputs dispatched via `FilterTokens` execute in **~28 μs with strictly 0 B/op heap allocation**.
+2. **Single Shared Backbone (No Error Cascading)**:
+   Avoids training multiple fragmented networks. A single compact encoder extracts context, while downstream safety boundaries and semantic boosts are computed geometrically.
+3. **Neuro-Symbolic Anchor Soft-Bias**:
+   Replaces fragile `strings.Contains` hardcoded branching with additive logit bonuses. Subword token IDs map to 64-bit masks (`uint64`), executing anchor boosts in a single CPU cycle (`&` and `popcount`).
+4. **Geometric L2 Cosine OOD Boundary**:
+   Compares normalized query embeddings against the calibrated domain manifold center ($C_{\text{domain}}$) using fast dot products, isolating OOD queries (e.g. quantum physics queries sent to an e-commerce router).
+
+### NeuroGate Production Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"intellibranch/pkg/intellibranch"
+)
+
+func main() {
+	// 1. Initialize NeuroGate from binary model
+	gate, err := intellibranch.NewNeuroGate("weights/demo_iot.bin")
+	if err != nil {
+		log.Fatalf("NeuroGate init failed: %v", err)
+	}
+
+	// 2. Calibrate domain manifold centroid from training samples
+	if samples, err := intellibranch.LoadCSVDataset("data/demo_iot.csv"); err == nil {
+		gate.CalibrateDomainCentroid(samples)
+	}
+
+	// 3. Bind route handlers with symbolic anchor soft-biases
+	gate.Bind("LightControl", func(ctx context.Context, payload any) error {
+		fmt.Println(">>> [GPIO 18 HIGH] Toggle Living Room Chandelier")
+		return nil
+	}).WithAnchor(1.8, "dark", "light", "lamps", "lamp", "switch", "lights")
+
+	gate.Bind("ClimateControl", func(ctx context.Context, payload any) error {
+		fmt.Println(">>> [MODBUS UART] Set Daikin HVAC Inverter Temperature")
+		return nil
+	}).WithAnchor(1.8, "cooling", "heat", "fan", "temp", "ac", "air")
+
+	gate.Fallback(func(ctx context.Context, payload any) error {
+		fmt.Println(">>> [FALLBACK] Isolated Out-of-Domain or Ambiguous Request")
+		return nil
+	})
+
+	// 4. Dispatch with microsecond latency and zero allocations
+	ctx := context.Background()
+	_ = gate.Filter(ctx, "it is too dark in here please switch on lamps", nil)
+}
+```
+
+---
+
 ## The Evolution of Control Flow: Why Retro Branching Fails & How IntelliBranch Proves Its Architectural Superiority
 
 Traditional programming languages force engineers into **discrete control flow** (`if`, `switch`, `hash map`, `regex`). These constructs were invented in the 1960s for deterministic, byte-exact hardware primitives. When applied to real-world strings, natural language, unstructured logs, or conversational commands, **they collapse entirely**.
