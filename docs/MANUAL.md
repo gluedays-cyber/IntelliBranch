@@ -1288,22 +1288,22 @@ func SetupBankingRouter() (*CoreBankingGateway, error) {
 
 ---
 
-## 9. 6-Domain Multi-Task Demonstration Suite (CLI Guide)
+## 9. 6-Domain Multi-Task Demonstration Suite: Proving the Evolution of Control Flow
 
-To validate the generalizability and performance of the v2.0 neural routing architecture, the project includes an automated multi-task demonstration driver located in `cmd/ib-demo`.
+Traditional programming constructs (`if`, `switch`, `hash map`, `regex`) were conceived for discrete, exact-byte matching. When applied to real-world language, colloquial variants, or high-volume unstructured logs, **they suffer structural collapse**. 
 
-### 9.1. Pre-Trained Demonstration Models
+IntelliBranch replaces discrete string comparison with **continuous vector-coordinate routing in ~30 μs**. The bundled demonstration driver (`cmd/ib-demo`) proves this superiority across 6 isolated enterprise domains:
 
-The test driver coordinates 6 separate specialized models compiled from domain datasets:
+### 9.1. Architectural Showdown: Retro Branching Collapse vs. IntelliBranch
 
-| Domain | Binary Path | Training Dataset | Specialization & Safety Pattern |
-| :--- | :--- | :--- | :--- |
-| **1. E-Commerce CS Gateway** | `weights/demo_cs.bin` | `data/demo_cs.csv` | Semantic XOR sequence resolution and multi-intent composite dispatch (`DispatchPipeline`). |
-| **2. Semantic LLM Gateway** | `weights/demo_llm.bin` | `data/demo_llm.csv` | 30 μs local Go execution ($0.00) vs Shannon Entropy OOD Cloud LLM Fallback ($0.02). |
-| **3. High-Throughput SRE Triage** | `weights/demo_sre.bin` | `data/demo_sre.csv` | **0 B/op (Zero Allocations)** stack inference via `PredictSlots` on 100k+ logs/sec. |
-| **4. Offline Edge IoT Control** | `weights/demo_iot.bin` | `data/demo_iot.csv` | Sub-180KB standalone binary voice/text command routing with slang resilience. |
-| **5. Automated CI/CD Remediation**| `weights/demo_cicd.bin` | `data/demo_cicd.csv`| Build failure triage: Auto-Retry (`Network`), Scale-Up (`OOM`), Notify (`Syntax`). |
-| **6. FinTech Memo Fraud Audit** | `weights/demo_fintech.bin`| `data/demo_fintech.csv`| Real-time scam interception & Borderline Step-Up 2FA Challenge (`Ambiguous`). |
+| Domain | Why Traditional Branching (`if`, `switch`, `map`, `regex`) Collapses | How IntelliBranch Proves Architectural Dominance |
+| :--- | :--- | :--- |
+| **1. E-Commerce CS Gateway** | `strings.Contains` collapses opposite intents (`"refund delivery"` vs `"delivery refund"`). Regex rules explode to $O(N!)$ permutations. | Learned Positional Embeddings ($P_{32 \times 64}$) disambiguate token order. `DispatchPipeline` chains multi-intent actions cleanly. |
+| **2. Semantic LLM Gateway** | Exact-key hash maps (`map[string]T`) have 0% hit rate on natural queries, wasting $0.02 and 1.5s per routine request on cloud LLMs. | Resolves routine commands locally in **30 μs at $0.00**. Shannon Entropy ($> 1.80$) isolates true OOD queries to OpenAI GPT-4o. |
+| **3. High-Throughput SRE Triage** | Complex regex engines burn 100% CPU on 100k logs/sec (ReDoS). Heap allocations trigger GC stop-the-world latency spikes. | Stack-allocated inference (`PredictSlots`) operates at **0 B/op and 0 allocs/op**, sustaining 33k+ ops/sec per core with 0ns GC pauses. |
+| **4. Offline Edge IoT Control** | `switch(cmd)` fails on everyday spoken variants (`"it's freezing"` != `"turn on heat"`). Local 7B LLMs require 4GB+ RAM. | Under 180 KB Little-Endian binary runs sub-milliwatt offline on embedded chips, routing colloquial commands directly to GPIO in microseconds. |
+| **5. Automated CI/CD Remediation**| Compiler error formatting fluctuates across toolchains, causing brittle regex matchers to silently fail and drop automated healing. | Ingests raw error tails and generalizes statistical subwords into deterministic remediation actions (`AutoRetry`, `ScaleUp`, `NotifyAuthor`). |
+| **6. FinTech Memo Fraud Audit** | Keyword blacklists are trivially bypassed by obfuscation (`"p0lice"`). Binary `if/else` creates false positives or fraud leakage. | 3-tier margin scoring triggers Step-Up 2FA (`Ambiguous`) when scam probability is borderline, introducing dynamic middle-ground control. |
 
 ### 9.2. Compiling and Running the Driver (Zero-Download Auto-Training)
 

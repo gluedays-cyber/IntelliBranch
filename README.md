@@ -249,24 +249,67 @@ trace := router.Inspect("can u cancel order #49281? i bought it by mistake")
 
 ---
 
-## 6-Domain Multi-Task Demonstration Suite (`ib-demo`)
+## The Evolution of Control Flow: Why Retro Branching Fails & How IntelliBranch Proves Its Architectural Superiority
 
-IntelliBranch comes bundled with a production-grade multi-task demonstration driver (`cmd/ib-demo`) validating 6 distinct enterprise use cases running on pure Go in microseconds:
+Traditional programming languages force engineers into **discrete control flow** (`if`, `switch`, `hash map`, `regex`). These constructs were invented in the 1960s for deterministic, byte-exact hardware primitives. When applied to real-world strings, natural language, unstructured logs, or conversational commands, **they collapse entirely**.
 
-| Domain | Model Binary | Dataset | Architectural Capabilities Demonstrated |
-| :--- | :--- | :--- | :--- |
-| **1. E-Commerce CS Gateway** | `weights/demo_cs.bin` | `data/demo_cs.csv` | Semantic XOR order resolution & Multi-Intent Composite Pipeline (`DispatchPipeline`) |
-| **2. Semantic LLM Gateway** | `weights/demo_llm.bin` | `data/demo_llm.csv` | Microsecond local Go bypass ($0.00) & Shannon Entropy OOD Cloud LLM Fallback ($0.02) |
-| **3. SRE High-Throughput Triage**| `weights/demo_sre.bin` | `data/demo_sre.csv` | **0 B/op (Zero Allocations)** stack inference via `PredictSlots` on 100k+ logs/sec |
-| **4. Offline Edge IoT Control** | `weights/demo_iot.bin` | `data/demo_iot.csv` | Sub-180KB binary offline voice/text command routing with slang resilience |
-| **5. Automated CI/CD Remediation**| `weights/demo_cicd.bin` | `data/demo_cicd.csv`| Build failure tail triage: Auto-Retry (`Network`), Scale-Up (`OOM`), Notify (`Syntax`) |
-| **6. FinTech Memo Fraud Audit** | `weights/demo_fintech.bin`| `data/demo_fintech.csv`| Real-time scam interception & Borderline Step-Up 2FA Challenge (`Ambiguous`) |
+IntelliBranch transforms control flow from brittle discrete matching into **continuous geometric vector-space routing ($text \to action$) in ~30 μs**.
 
-### Zero-Download On-The-Fly Demonstration Driver
+The included multi-task demonstration driver (`cmd/ib-demo`) directly pits IntelliBranch against traditional programming primitives across 6 critical enterprise domains:
 
-Because IntelliBranch manufactures its own neural models directly from code, **you do NOT need to download pre-trained weights from HuggingFace or Git LFS**. 
+### 1. Structural Comparison: Retro Branching vs. IntelliBranch
 
-When `ib-demo` is executed for the first time, its built-in auto-training bootstrap reads the domain CSV datasets in `data/demo_*.csv` and compiles all 6 Little-Endian binary models in memory in under 2 seconds:
+| Control Flow Primitive | Why It Breaks Down on Real-World Input | How IntelliBranch Resolves It Permanently |
+| :--- | :--- | :--- |
+| **`switch` / `if (str == val)`** | **100% Failure on Variations**: A 1-character typo (`"refnd"`), colloquial phrasing (`"gimme my cash back"`), or extra whitespace causes silent fall-through. | **BPE Continuous Embedding**: Maps all semantic synonyms and misspelled subwords to contiguous vector coordinates in 64-D space. |
+| **Hash Maps (`map[string]T`)** | **Exact-Key Blindness**: Cannot index semantic equivalence. Caching 10,000 phrasing variations requires 10,000 distinct hash keys, leading to memory bloat and constant cache misses. | **Semantic Coordinate Resolution**: Resolves infinite sentence variations into deterministic Go handlers in ~30 μs with zero external network overhead. |
+| **Regular Expressions (`regex`)** | **Combinatorial Explosion & ReDoS**: Supporting synonyms requires nested lookaheads and permutations ($O(N!)$ rules), causing CPU exhaustion (ReDoS backtracking) and unmaintainable regex hell. | **Non-Linear GELU Tensor Layers**: Evaluates feature cross-products without regex backtracking, maintaining deterministic, capped compute times. |
+| **String Search (`strings.Contains`)** | **Semantic XOR Failure**: Commutative addition collapses opposite meanings. Cannot distinguish `"refund my delivery"` from `"delivery instead of refund"`. Word collisions cause catastrophic misrouting. | **Learned Positional Embeddings**: Encodes token sequence coordinates ($P_{32 \times 64}$) into non-linear activations, mathematically distinguishing token order permutations. |
+| **Binary Boolean Decisions** | **Forced Misclassification**: Discrete `if/else` forces ambiguous or out-of-distribution noise into whichever branch happens to have a loose wildcard match. | **3-Tier Calibrated Pipeline**: Quantifies Shannon Entropy to isolate OOD noise to Fallback, while detecting competitive top-2 margins to trigger Step-up 2FA/Ambiguous logic. |
+
+---
+
+### 2. 6-Domain Deep-Dive: Proving Superiority in Action (`ib-demo`)
+
+The automated demonstration driver (`ib-demo`) proves these architectural advantages live across 6 isolated models:
+
+#### Domain 1: E-Commerce CS Gateway (Defeating the Semantic XOR Dilemma)
+- **The Retro Collapse**: `if strings.Contains(msg, "refund") && strings.Contains(msg, "delivery")` collapses opposite business intents. Both `"refund delivery fee"` and `"delivery instead of refund"` trigger the same branch. Regex permutations explode exponentially.
+- **The IntelliBranch Victory**: Learned positional vectors ($P_i$) coupled with non-linear $GELU(E_i + P_i)$ pooling mathematically separate token permutations. Furthermore, `DispatchPipeline` automatically executes composite operations (e.g. Return Approved $\to$ Reshipment Initiated) when both primary and secondary confidences qualify.
+- **Run Live**: `./bin/ib-demo.exe -domain cs`
+
+#### Domain 2: Semantic LLM Gateway (Defeating Hash Map Key Misses & API Waste)
+- **The Retro Collapse**: Caching natural language with `map[string]Handler` achieves a near 0% hit rate because users never type the exact same string twice. Consequently, backends route 100% of routine traffic to OpenAI/Claude, burning $0.02–$0.05 and 1,500ms per request.
+- **The IntelliBranch Victory**: Maps routine banking commands (`QueryBalance`, `TransferFunds`, `CardLock`) directly to in-memory Go handlers in **30 μs at $0.00 cost**. Out-of-Distribution (OOD) queries (e.g. `"explain quantum physics"`) are detected via high Shannon Entropy ($> 1.80$) and safely escalated to cloud LLMs.
+- **Run Live**: `./bin/ib-demo.exe -domain llm`
+
+#### Domain 3: High-Throughput SRE Log Triage (Defeating ReDoS & GC Pauses with 0 B/op)
+- **The Retro Collapse**: Ingesting 100,000+ log lines/sec through complex regex engines burns 100% CPU due to catastrophic backtracking. String allocations trigger GC stop-the-world pauses, choking message brokers (Kafka, Vector).
+- **The IntelliBranch Victory**: Executes stack-allocated zero-heap inference (`PredictSlots`) with **strictly 0 B/op and 0 allocs/op**. Instantly routes critical P0 panics (OOMKilled) to autoscalers while shunting low-priority health probes without heap garbage.
+- **Run Live**: `./bin/ib-demo.exe -domain sre`
+
+#### Domain 4: Offline Edge IoT Control (Defeating Brittle Keyword Matching in <180KB RAM)
+- **The Retro Collapse**: Hard-coded `switch(cmd)` fails when users speak naturally: `"it's freezing in here"` fails to trigger `"turn on heater"`. Running local 7B models requires 4GB+ RAM, impossible on 64MB embedded Linux boards.
+- **The IntelliBranch Victory**: Compiles into a single Little-Endian binary under 180 KB with zero external dependencies and zero CGO. Maps colloquial voice/text variants directly to hardware GPIO/UART actuators in single-digit microseconds.
+- **Run Live**: `./bin/ib-demo.exe -domain iot`
+
+#### Domain 5: Automated CI/CD Failure Triage (Defeating Fragile String Scrapers)
+- **The Retro Collapse**: Compiler error messages change formatting across toolchains (Docker, Go, Gradle, Kubernetes). Hard-coded string pattern matching silently breaks, forcing DevOps engineers to manually triage build failures.
+- **The IntelliBranch Victory**: Ingests unstructured build error tails and generalizes statistical subwords to trigger deterministic self-healing actions: `AutoRetry` (transient network 504), `ScaleUp` (OOM kill status 137), or `NotifyAuthor` (code syntax error).
+- **Run Live**: `./bin/ib-demo.exe -domain cicd`
+
+#### Domain 6: FinTech Transaction Memo Audit (Defeating Naive Blacklists with 3-Tier Safety)
+- **The Retro Collapse**: Keyword blacklists (`strings.Contains("scam")`) are trivially bypassed by fraudsters using typo obfuscation (`"p0lice f1ne"`). Rigid binary `if/else` either blocks legitimate transactions or lets fraud slip through.
+- **The IntelliBranch Victory**: Evaluates semantic risk. When the margin between normal transfer and scam suspicion is borderline (`isAmbiguous`), it intercepts execution to trigger Step-Up 2FA (SMS OTP challenge), providing a dynamic middle-ground impossible in standard boolean control flow.
+- **Run Live**: `./bin/ib-demo.exe -domain fintech`
+
+---
+
+### 3. Zero-Download On-The-Fly Demonstration Driver
+
+Because IntelliBranch manufactures its own neural models directly from dataset CSVs, **you do NOT need to download pre-trained weights from HuggingFace, Git LFS, or external buckets**. 
+
+When `ib-demo` is executed, its built-in auto-training bootstrap reads `data/demo_*.csv` and compiles all 6 Little-Endian binary models in memory in under 2 seconds:
 
 ```bash
 # Option 1: Instant direct run (auto-trains missing models and executes showcase)
@@ -278,13 +321,13 @@ go build -ldflags="-s -w" -o bin/ib-demo.exe ./cmd/ib-demo
 # Run all 6 domains sequentially in automated showcase mode
 ./bin/ib-demo.exe -domain all
 
-# Or inspect a specific enterprise domain
-./bin/ib-demo.exe -domain cs       # E-Commerce CS Gateway (XOR & Multi-Intent Pipeline)
-./bin/ib-demo.exe -domain llm      # Semantic LLM Gateway & Cloud Bypass ($0.00 local vs $0.02 cloud)
-./bin/ib-demo.exe -domain sre      # High-Throughput SRE Log Triage (0 B/op via PredictSlots)
-./bin/ib-demo.exe -domain iot      # Offline Edge IoT Command Dispatcher
-./bin/ib-demo.exe -domain cicd     # Automated CI/CD Failure Triage & Self-Healing
-./bin/ib-demo.exe -domain fintech  # FinTech Transaction Memo Audit & 2FA Challenge
+# Or inspect an isolated domain to verify architectural superiority
+./bin/ib-demo.exe -domain cs       # Proves Semantic XOR order disambiguation
+./bin/ib-demo.exe -domain llm      # Proves Local $0.00 bypass vs Cloud LLM escape
+./bin/ib-demo.exe -domain sre      # Proves 0 B/op stack allocation on logs
+./bin/ib-demo.exe -domain iot      # Proves Sub-180KB offline colloquial control
+./bin/ib-demo.exe -domain cicd     # Proves Automated build failure self-healing
+./bin/ib-demo.exe -domain fintech  # Proves Borderline Step-Up 2FA Challenge
 ```
 
 ---
