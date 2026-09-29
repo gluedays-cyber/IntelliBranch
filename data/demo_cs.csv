@@ -1,0 +1,35 @@
+text,label
+I want to cancel my order and get a full refund,Refund
+please refund the money to my original payment card,Refund
+sent the package back last week when will i receive refund,Refund
+can i get my money back for this broken item,Refund
+i was charged twice for the same purchase please reverse charge,Refund
+cancel subscription and refund remaining balance,Refund
+where is my shipment tracking says in transit for 5 days,Delivery
+courier marked delivered but package is missing from porch,Delivery
+can i change my delivery address to my office,Delivery
+how long does express shipping take to reach new york,Delivery
+package arrived damaged the outer box is completely crushed,Delivery
+update shipping destination for order 9821,Delivery
+i forgot my password and cannot access my account,Account
+two factor authentication code is not arriving on my phone,Account
+please update the email address linked to my account,Account
+someone logged into my account from an unknown device,Account
+how do i delete or close my profile permanently,Account
+reset account credentials and security questions,Account
+credit card declined during checkout with error 402,Payment
+can i split payment between gift card and visa,Payment
+update expired billing card details for renewal,Payment
+why was my paypal transaction rejected,Payment
+apply discount coupon code to my pending invoice,Payment
+wire transfer receipt attached please confirm payment,Payment
+refund my payment immediately item never arrived,Refund
+return product and issue money back credit,Refund
+i returned the box please update delivery,Refund
+driver left package at the wrong building lobby,Delivery
+track courier location and expected arrival time,Delivery
+unlock my frozen profile after multiple failed attempts,Account
+verify identity documents for account reactivation,Account
+charge on my bank statement does not match invoice total,Payment
+switch auto debit bank account for monthly billing,Payment
+

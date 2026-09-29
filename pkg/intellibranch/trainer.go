@@ -221,17 +221,21 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 	}
 
 	weights := Weights{
-		Embedding: make([]float32, vocabSize*cfg.EmbeddingDim),
-		W1:        make([]float32, cfg.EmbeddingDim*cfg.HiddenDim),
-		B1:        make([]float32, cfg.HiddenDim),
-		W2:        make([]float32, cfg.HiddenDim*numClasses),
-		B2:        make([]float32, numClasses),
+		Embedding:  make([]float32, vocabSize*cfg.EmbeddingDim),
+		Positional: make([]float32, MaxSequenceTokens*cfg.EmbeddingDim),
+		W1:         make([]float32, cfg.EmbeddingDim*cfg.HiddenDim),
+		B1:         make([]float32, cfg.HiddenDim),
+		W2:         make([]float32, cfg.HiddenDim*numClasses),
+		B2:         make([]float32, numClasses),
 	}
 
 	// Initialize weights
 	embScale := float32(math.Sqrt(1.0 / float64(cfg.EmbeddingDim)))
 	for i := range weights.Embedding {
 		weights.Embedding[i] = (rng.Float32()*2.0 - 1.0) * embScale
+	}
+	for i := range weights.Positional {
+		weights.Positional[i] = (rng.Float32()*2.0 - 1.0) * embScale
 	}
 	w1Scale := float32(math.Sqrt(2.0 / float64(cfg.EmbeddingDim)))
 	for i := range weights.W1 {
@@ -244,6 +248,7 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 
 	// Initialize AdamW Optimizers
 	optEmb := newAdamWState(len(weights.Embedding))
+	optPos := newAdamWState(len(weights.Positional))
 	optW1 := newAdamWState(len(weights.W1))
 	optB1 := newAdamWState(len(weights.B1))
 	optW2 := newAdamWState(len(weights.W2))
@@ -251,6 +256,7 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 
 	// Gradients Accumulator Buffers
 	gradEmb := make([]float32, len(weights.Embedding))
+	gradPos := make([]float32, len(weights.Positional))
 	gradW1 := make([]float32, len(weights.W1))
 	gradB1 := make([]float32, len(weights.B1))
 	gradW2 := make([]float32, len(weights.W2))
@@ -292,6 +298,7 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 
 		// Reset gradients
 		clearSlice(gradEmb)
+		clearSlice(gradPos)
 		clearSlice(gradW1)
 		clearSlice(gradB1)
 		clearSlice(gradW2)
@@ -300,8 +307,8 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 		accumCount := 0
 
 		for idx, sample := range trainSet {
-			// Forward Pass
-			_ = MeanPooling(sample.tokens, weights.Embedding, cfg.EmbeddingDim, pooled)
+			// Forward Pass with Positional Encoding
+			_ = MeanPoolingWithPos(sample.tokens, weights.Embedding, weights.Positional, cfg.EmbeddingDim, pooled)
 			_ = MatMulVecAdd(pooled, weights.W1, weights.B1, cfg.EmbeddingDim, cfg.HiddenDim, z1)
 			for i := 0; i < cfg.HiddenDim; i++ {
 				a1[i] = GELU(z1[i])
@@ -365,12 +372,18 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 				dMean[e] = sum
 			}
 
-			// 7. Backprop through Mean Pooling to Token Embeddings
+			// 7. Backprop through Non-Linear Positional Mean Pooling
 			invLen := 1.0 / float32(len(sample.tokens))
-			for _, tok := range sample.tokens {
+			for pos, tok := range sample.tokens {
 				tokOffset := int(tok) * cfg.EmbeddingDim
+				posOffset := pos * cfg.EmbeddingDim
 				for e := 0; e < cfg.EmbeddingDim; e++ {
-					gradEmb[tokOffset+e] += dMean[e] * invLen
+					sumVal := weights.Embedding[tokOffset+e] + weights.Positional[posOffset+e]
+					g := dMean[e] * invLen * geluDerivative(sumVal)
+					gradEmb[tokOffset+e] += g
+					if posOffset+cfg.EmbeddingDim <= len(gradPos) {
+						gradPos[posOffset+e] += g
+					}
 				}
 			}
 
@@ -380,18 +393,21 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 			if accumCount%batchSize == 0 || idx == len(trainSet)-1 {
 				scale := 1.0 / float32(accumCount)
 				scaleSlice(gradEmb, scale)
+				scaleSlice(gradPos, scale)
 				scaleSlice(gradW1, scale)
 				scaleSlice(gradB1, scale)
 				scaleSlice(gradW2, scale)
 				scaleSlice(gradB2, scale)
 
 				optEmb.Step(weights.Embedding, gradEmb, cfg.LearningRate, 0.0, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
+				optPos.Step(weights.Positional, gradPos, cfg.LearningRate, 0.0, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
 				optW1.Step(weights.W1, gradW1, cfg.LearningRate, cfg.WeightDecay, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
 				optB1.Step(weights.B1, gradB1, cfg.LearningRate, 0.0, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
 				optW2.Step(weights.W2, gradW2, cfg.LearningRate, cfg.WeightDecay, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
 				optB2.Step(weights.B2, gradB2, cfg.LearningRate, 0.0, cfg.Beta1, cfg.Beta2, cfg.Epsilon)
 
 				clearSlice(gradEmb)
+				clearSlice(gradPos)
 				clearSlice(gradW1)
 				clearSlice(gradB1)
 				clearSlice(gradW2)
@@ -404,7 +420,7 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 		var trainLoss float32
 		var trainCorrect int
 		for _, sample := range trainSet {
-			_ = MeanPooling(sample.tokens, weights.Embedding, cfg.EmbeddingDim, pooled)
+			_ = MeanPoolingWithPos(sample.tokens, weights.Embedding, weights.Positional, cfg.EmbeddingDim, pooled)
 			_ = MatMulVecAdd(pooled, weights.W1, weights.B1, cfg.EmbeddingDim, cfg.HiddenDim, z1)
 			for i := 0; i < cfg.HiddenDim; i++ {
 				a1[i] = GELU(z1[i])
@@ -436,7 +452,7 @@ func TrainModel(samples []DataSample, cfg TrainConfig) (*InferenceModel, error) 
 		var valLoss float32
 		var valCorrect int
 		for _, sample := range valSet {
-			_ = MeanPooling(sample.tokens, weights.Embedding, cfg.EmbeddingDim, pooled)
+			_ = MeanPoolingWithPos(sample.tokens, weights.Embedding, weights.Positional, cfg.EmbeddingDim, pooled)
 			_ = MatMulVecAdd(pooled, weights.W1, weights.B1, cfg.EmbeddingDim, cfg.HiddenDim, z1)
 			for i := 0; i < cfg.HiddenDim; i++ {
 				a1[i] = GELU(z1[i])
@@ -519,13 +535,15 @@ func scaleSlice(s []float32, factor float32) {
 
 func cloneWeights(w Weights) Weights {
 	cp := Weights{
-		Embedding: make([]float32, len(w.Embedding)),
-		W1:        make([]float32, len(w.W1)),
-		B1:        make([]float32, len(w.B1)),
-		W2:        make([]float32, len(w.W2)),
-		B2:        make([]float32, len(w.B2)),
+		Embedding:  make([]float32, len(w.Embedding)),
+		Positional: make([]float32, len(w.Positional)),
+		W1:         make([]float32, len(w.W1)),
+		B1:         make([]float32, len(w.B1)),
+		W2:         make([]float32, len(w.W2)),
+		B2:         make([]float32, len(w.B2)),
 	}
 	copy(cp.Embedding, w.Embedding)
+	copy(cp.Positional, w.Positional)
 	copy(cp.W1, w.W1)
 	copy(cp.B1, w.B1)
 	copy(cp.W2, w.W2)

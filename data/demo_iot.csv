@@ -1,0 +1,27 @@
+text,label
+turn on the ceiling light in the living room,LightControl
+it is too dark in here please switch on lamps,LightControl
+dim bedroom lighting to thirty percent brightness,LightControl
+shut off all lights on the second floor,LightControl
+change kitchen undercabinet lights to warm white,LightControl
+turn lights down movie night mode,LightControl
+set air conditioner temperature to seventy two degrees,ClimateControl
+it feels freezing in this room turn up the heat,ClimateControl
+cooling mode on maximum fan speed in master bedroom,ClimateControl
+turn off the thermostat when leaving the house,ClimateControl
+set target humidity to forty percent on dehumidifier,ClimateControl
+increase heating temperature by two degrees,ClimateControl
+lock the front entrance smart door deadbolt immediately,DoorLock
+did i leave the back patio door unlocked please check and lock,DoorLock
+unlock side garage door for courier delivery,DoorLock
+secure all exterior doors and arm deadbolts,DoorLock
+open front door lock code entered successfully,DoorLock
+play smooth jazz music on living room soundbar,MediaPlayback
+pause audio streaming on kitchen smart speaker,MediaPlayback
+skip to the next track on spotify playlist,MediaPlayback
+turn up speaker volume to eighty percent,MediaPlayback
+stop podcast playback across all rooms,MediaPlayback
+switch on hallway chandelier,LightControl
+air conditioning feels too hot lower temp please,ClimateControl
+ensure all window and door locks are locked,DoorLock
+resume playing audiobook on bedroom audio,MediaPlayback

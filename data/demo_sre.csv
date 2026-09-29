@@ -1,0 +1,25 @@
+text,label
+FATAL: Out of memory: Kill process 9182 java total-vm:8192MB,OutOfMemory
+java.lang.OutOfMemoryError: Java heap space at array allocate,OutOfMemory
+fatal error: runtime: out of memory allocating 4194304 bytes,OutOfMemory
+container exited with code 137 OOMKilled cgroup memory limit,OutOfMemory
+memory cgroup out of memory invoked oom-killer gfp_mask,OutOfMemory
+ERROR: connection pool exhausted active: 100 idle: 0 timeout: 30s,DBPoolExhausted
+org.postgresql.util.PSQLException: FATAL: remaining connection slots are reserved,DBPoolExhausted
+HikariPool-1 - Connection is not available request timed out after 30000ms,DBPoolExhausted
+dial tcp 10.0.4.12:5432: too many connections to database server,DBPoolExhausted
+SQLSTATE 53300 too many clients already connected to postgres,DBPoolExhausted
+WARN: sshd[4912]: Failed password for invalid user root from 192.168.1.100,AuthBruteForce
+SECURITY ALERT: 250 failed login attempts in 60 seconds from single IP,AuthBruteForce
+PAM 2 more authentication failures logname= uid=0 euid=0 tty=ssh ruser= rhost=,AuthBruteForce
+iptables drop repetitive ssh brute force attempt on port 22,AuthBruteForce
+unauthorized access token probe repeatedly rejected by api gateway,AuthBruteForce
+INFO: health check probe /healthz returned 200 OK latency: 2ms,SystemHealth
+Heartbeat ping received from worker node ip-10-0-12-88 status healthy,SystemHealth
+Kubernetes liveness probe successful on port 8080 pod running,SystemHealth
+metrics export completed 450 time series uploaded to prometheus,SystemHealth
+service mesh ingress envoy proxy upstream healthy 100% 2xx responses,SystemHealth
+kernel killed process worker-task due to host memory starvation,OutOfMemory
+database max client connections reached cannot acquire lock,DBPoolExhausted
+repeated ssh authentication breach attempt detected from china subnet,AuthBruteForce
+system cluster status nominal all nodes synchronized,SystemHealth

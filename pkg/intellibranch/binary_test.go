@@ -186,3 +186,58 @@ func TestFileIO(t *testing.T) {
 		t.Errorf("VocabSize mismatch: %d vs %d", loadedModel.Header.VocabSize, origModel.Header.VocabSize)
 	}
 }
+
+func TestFormatVersion2RoundTrip(t *testing.T) {
+	header := Header{
+		Magic:        MagicBytes,
+		Version:      CurrentFormatVersion, // Version 2
+		VocabSize:    4,
+		EmbeddingDim: 4,
+		HiddenDim:    6,
+		NumClasses:   2,
+	}
+
+	labels := []string{"Refund", "Delivery"}
+	vocab := []string{"[PAD]", "refund", "cancel", "delivery"}
+	mergeRules := []MergeRule{
+		{Token1: 1, Token2: 2, Target: 3},
+	}
+
+	posLen := int(MaxSequenceTokens * header.EmbeddingDim)
+	weights := Weights{
+		Embedding:  make([]float32, header.VocabSize*header.EmbeddingDim),
+		Positional: make([]float32, posLen),
+		W1:         make([]float32, header.EmbeddingDim*header.HiddenDim),
+		B1:         make([]float32, header.HiddenDim),
+		W2:         make([]float32, header.HiddenDim*header.NumClasses),
+		B2:         make([]float32, header.NumClasses),
+	}
+
+	// Set distinct positional values
+	for i := range weights.Positional {
+		weights.Positional[i] = float32(i+1) * 0.01
+	}
+
+	v2Model := NewInferenceModel(header, labels, vocab, mergeRules, weights)
+
+	var buf bytes.Buffer
+	if err := SerializeModel(&buf, v2Model); err != nil {
+		t.Fatalf("SerializeModel v2 failed: %v", err)
+	}
+
+	loaded, err := DeserializeModel(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("DeserializeModel v2 failed: %v", err)
+	}
+
+	if loaded.Header.Version != 2 {
+		t.Errorf("Expected version 2, got %d", loaded.Header.Version)
+	}
+
+	// Verify positional weights integrity
+	for i := 0; i < posLen; i++ {
+		if loaded.Weights.Positional[i] != weights.Positional[i] {
+			t.Fatalf("Positional weight mismatch at index %d: expected %f, got %f", i, weights.Positional[i], loaded.Weights.Positional[i])
+		}
+	}
+}

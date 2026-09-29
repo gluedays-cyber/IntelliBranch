@@ -1,0 +1,29 @@
+text,label
+what is my current checking account balance,QueryBalance
+how much money do i have left in my savings account,QueryBalance
+check remaining funds in my primary wallet,QueryBalance
+tell me the total balance across all accounts,QueryBalance
+view recent balance after last deposit,QueryBalance
+send five hundred dollars to john doe from checking,TransferFunds
+wire money to alice account number 88219,TransferFunds
+transfer fifty bucks to my brother savings,TransferFunds
+pay electricity utility bill using checking account,TransferFunds
+remit payment to landlord for monthly rent,TransferFunds
+freeze my debit card immediately i lost my wallet,CardLock
+temporarily lock credit card ending in 4092,CardLock
+block my atm card someone stole my purse,CardLock
+deactivate physical card due to suspicious swipe,CardLock
+suspend all transactions on my visa card,CardLock
+change my residential mailing address in profile,UpdateProfile
+update my primary contact phone number,UpdateProfile
+edit personal email address for notifications,UpdateProfile
+modify account holder name after marriage,UpdateProfile
+update my tax identification number details,UpdateProfile
+what is my ledger balance today,QueryBalance
+available balance for immediate withdrawal,QueryBalance
+move funds between checking and investment account,TransferFunds
+instant wire transfer to external bank account,TransferFunds
+lock card stolen in subway station,CardLock
+disable contactless payments on my debit card,CardLock
+change notification preferences in my settings,UpdateProfile
+set up paperless billing statements,UpdateProfile

@@ -11,36 +11,51 @@ const (
 
 	// GeluCoeff is the polynomial coefficient for GELU tanh approximation.
 	GeluCoeff float32 = 0.044715
+
+	// NumericalClampLimit protects float32 values from overflowing into Inf/NaN.
+	NumericalClampLimit float32 = 100.0
 )
 
 var (
-	ErrZeroLengthTokens = errors.New("cannot pool over zero tokens")
+	ErrZeroLengthTokens  = errors.New("cannot pool over zero tokens")
 	ErrDimensionMismatch = errors.New("tensor dimension mismatch during linear operation")
 )
+
+// SafeClamp restricts a float32 within [-limit, limit] and replaces NaN/Inf with 0.0.
+func SafeClamp(val float32, limit float32) float32 {
+	if math.IsNaN(float64(val)) || math.IsInf(float64(val), 0) {
+		return 0.0
+	}
+	if val < -limit {
+		return -limit
+	}
+	if val > limit {
+		return limit
+	}
+	return val
+}
 
 // GELU calculates the Gaussian Error Linear Unit activation using the standard tanh approximation.
 // GELU(x) = 0.5 * x * (1 + tanh(sqrt(2 / pi) * (x + 0.044715 * x^3)))
 func GELU(x float32) float32 {
+	x = SafeClamp(x, NumericalClampLimit)
 	cube := x * x * x
 	inner := Sqrt2OverPi * (x + GeluCoeff*cube)
+	inner = SafeClamp(inner, NumericalClampLimit)
 	tanhVal := float32(math.Tanh(float64(inner)))
-	return 0.5 * x * (1.0 + tanhVal)
+	return SafeClamp(0.5*x*(1.0+tanhVal), NumericalClampLimit)
 }
 
 // GELUInPlace applies the GELU non-linear activation function across a float32 slice in-place.
 func GELUInPlace(vec []float32) {
 	for i := 0; i < len(vec); i++ {
-		x := vec[i]
-		cube := x * x * x
-		inner := Sqrt2OverPi * (x + GeluCoeff*cube)
-		tanhVal := float32(math.Tanh(float64(inner)))
-		vec[i] = 0.5 * x * (1.0 + tanhVal)
+		vec[i] = GELU(vec[i])
 	}
 }
 
-// MeanPooling computes the average embedding vector across the given token IDs.
+// MeanPoolingWithPos computes the average embedding vector across the given token IDs with learned positional embeddings.
 // out must have a length of at least embDim.
-func MeanPooling(tokenIDs []uint32, embeddingTable []float32, embDim int, out []float32) error {
+func MeanPoolingWithPos(tokenIDs []uint32, embeddingTable []float32, posTable []float32, embDim int, out []float32) error {
 	seqLen := len(tokenIDs)
 	if seqLen == 0 {
 		return ErrZeroLengthTokens
@@ -51,24 +66,48 @@ func MeanPooling(tokenIDs []uint32, embeddingTable []float32, embDim int, out []
 		out[i] = 0.0
 	}
 
-	// Accumulate embeddings
-	for _, id := range tokenIDs {
-		offset := int(id) * embDim
-		if offset+embDim > len(embeddingTable) {
+	maxSeq := 0
+	if embDim > 0 && len(posTable) > 0 {
+		maxSeq = len(posTable) / embDim
+	}
+
+	// Accumulate embeddings with positional encoding and numerical clamp protection
+	for pos, id := range tokenIDs {
+		tokOffset := int(id) * embDim
+		if tokOffset+embDim > len(embeddingTable) {
 			return errors.New("token ID exceeds embedding table bounds")
 		}
+
+		var posOffset int
+		hasPos := false
+		if maxSeq > 0 && pos < maxSeq {
+			posOffset = pos * embDim
+			hasPos = true
+		}
+
 		for d := 0; d < embDim; d++ {
-			out[d] += embeddingTable[offset+d]
+			val := SafeClamp(embeddingTable[tokOffset+d], NumericalClampLimit)
+			if hasPos {
+				// Non-linear GELU projection breaks the commutative property of summation:
+				// GELU(A + P0) + GELU(B + P1) != GELU(B + P0) + GELU(A + P1)
+				val = GELU(val + posTable[posOffset+d])
+			}
+			out[d] = SafeClamp(out[d]+val, NumericalClampLimit)
 		}
 	}
 
 	// Scale by 1 / L
 	invLen := 1.0 / float32(seqLen)
 	for d := 0; d < embDim; d++ {
-		out[d] *= invLen
+		out[d] = SafeClamp(out[d]*invLen, NumericalClampLimit)
 	}
 
 	return nil
+}
+
+// MeanPooling computes the average embedding vector across the given token IDs without positional encoding.
+func MeanPooling(tokenIDs []uint32, embeddingTable []float32, embDim int, out []float32) error {
+	return MeanPoolingWithPos(tokenIDs, embeddingTable, nil, embDim, out)
 }
 
 // MatMulVecAdd computes out = vec * weights + bias where vec is [1 x inDim], weights is [inDim x outDim],
@@ -78,18 +117,21 @@ func MatMulVecAdd(vec []float32, weights []float32, bias []float32, inDim int, o
 		return ErrDimensionMismatch
 	}
 
-	// Initialize with bias values
-	copy(out[:outDim], bias[:outDim])
+	// Initialize with clamped bias values
+	for j := 0; j < outDim; j++ {
+		out[j] = SafeClamp(bias[j], NumericalClampLimit)
+	}
 
 	// Perform vector-matrix product with cache-efficient layout: weights is inDim x outDim row-major
 	for i := 0; i < inDim; i++ {
-		v := vec[i]
+		v := SafeClamp(vec[i], NumericalClampLimit)
 		if v == 0.0 {
 			continue
 		}
 		rowOffset := i * outDim
 		for j := 0; j < outDim; j++ {
-			out[j] += v * weights[rowOffset+j]
+			w := SafeClamp(weights[rowOffset+j], NumericalClampLimit)
+			out[j] = SafeClamp(out[j]+v*w, NumericalClampLimit)
 		}
 	}
 
@@ -103,16 +145,16 @@ func Softmax(logits []float32, temperature float32, out []float32) error {
 	if n == 0 {
 		return errors.New("empty logits")
 	}
-	if temperature <= 0.0 {
+	if temperature <= 0.0 || math.IsNaN(float64(temperature)) || math.IsInf(float64(temperature), 0) {
 		temperature = 1.0
 	}
 
 	invTemp := 1.0 / temperature
 
 	// Find max logit for numerical stability
-	maxLogit := logits[0] * invTemp
+	maxLogit := SafeClamp(logits[0], NumericalClampLimit) * invTemp
 	for i := 1; i < n; i++ {
-		scaled := logits[i] * invTemp
+		scaled := SafeClamp(logits[i], NumericalClampLimit) * invTemp
 		if scaled > maxLogit {
 			maxLogit = scaled
 		}
@@ -121,9 +163,22 @@ func Softmax(logits []float32, temperature float32, out []float32) error {
 	// Compute exp and sum
 	var sumExp float32
 	for i := 0; i < n; i++ {
-		e := float32(math.Exp(float64(logits[i]*invTemp - maxLogit)))
+		val := SafeClamp(logits[i], NumericalClampLimit)*invTemp - maxLogit
+		e := float32(math.Exp(float64(val)))
+		if math.IsNaN(float64(e)) || math.IsInf(float64(e), 0) {
+			e = 0.0
+		}
 		out[i] = e
 		sumExp += e
+	}
+
+	// Fallback to uniform distribution if sumExp is degenerated
+	if sumExp <= 0.0 || math.IsNaN(float64(sumExp)) || math.IsInf(float64(sumExp), 0) {
+		uniform := 1.0 / float32(n)
+		for i := 0; i < n; i++ {
+			out[i] = uniform
+		}
+		return nil
 	}
 
 	// Normalize

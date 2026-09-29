@@ -3,6 +3,7 @@ package intellibranch
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"unicode/utf8"
 )
@@ -75,24 +76,45 @@ func NewInferenceModel(
 	return model
 }
 
-// Forward executes the 2-layer MLP inference over a slice of token IDs.
-// It returns a newly allocated slice of class probabilities.
-func (m *InferenceModel) Forward(tokenIDs []uint32, temperature float32) ([]float32, error) {
+// MatchSlot captures a predicted class index and its normalized confidence score without heap allocations.
+type MatchSlot struct {
+	Index      int16
+	Confidence float32
+}
+
+// StaticInferenceResult encapsulates top-2 ranked prediction slots and uncertainty entropy on the stack.
+type StaticInferenceResult struct {
+	Primary   MatchSlot
+	Secondary MatchSlot
+	Entropy   float32
+	Total     uint8
+}
+
+// computeEntropy calculates Shannon entropy in bits with epsilon guards to prevent NaN/Inf underflows.
+func computeEntropy(probs []float32) float32 {
+	var entropy float64
+	for _, p := range probs {
+		if p > 1e-7 {
+			entropy -= float64(p) * math.Log2(float64(p))
+		}
+	}
+	return float32(entropy)
+}
+
+// forwardInternal executes the forward computation directly inside the provided scratch buffer without allocations.
+func (m *InferenceModel) forwardInternal(tokenIDs []uint32, temperature float32, buf *inferenceBuffer) error {
 	if len(tokenIDs) == 0 {
-		return nil, ErrEmptyInput
+		return ErrEmptyInput
 	}
 
-	buf := m.bufPool.Get().(*inferenceBuffer)
-	defer m.bufPool.Put(buf)
-
-	// 1. Mean Pooling: [SeqLen] -> [EmbeddingDim]
-	if err := MeanPooling(tokenIDs, m.Weights.Embedding, int(m.Header.EmbeddingDim), buf.pooled); err != nil {
-		return nil, fmt.Errorf("mean pooling failed: %w", err)
+	// 1. Mean Pooling with Positional Encoding: [SeqLen] -> [EmbeddingDim]
+	if err := MeanPoolingWithPos(tokenIDs, m.Weights.Embedding, m.Weights.Positional, int(m.Header.EmbeddingDim), buf.pooled); err != nil {
+		return fmt.Errorf("mean pooling failed: %w", err)
 	}
 
 	// 2. Layer 1 Linear: [EmbeddingDim] x [EmbeddingDim x HiddenDim] + [HiddenDim] -> [HiddenDim]
 	if err := MatMulVecAdd(buf.pooled, m.Weights.W1, m.Weights.B1, int(m.Header.EmbeddingDim), int(m.Header.HiddenDim), buf.hidden); err != nil {
-		return nil, fmt.Errorf("layer 1 forward failed: %w", err)
+		return fmt.Errorf("layer 1 forward failed: %w", err)
 	}
 
 	// 3. GELU Non-Linear Activation In-Place
@@ -100,7 +122,7 @@ func (m *InferenceModel) Forward(tokenIDs []uint32, temperature float32) ([]floa
 
 	// 4. Layer 2 Linear: [HiddenDim] x [HiddenDim x NumClasses] + [NumClasses] -> [NumClasses]
 	if err := MatMulVecAdd(buf.hidden, m.Weights.W2, m.Weights.B2, int(m.Header.HiddenDim), int(m.Header.NumClasses), buf.logits); err != nil {
-		return nil, fmt.Errorf("layer 2 forward failed: %w", err)
+		return fmt.Errorf("layer 2 forward failed: %w", err)
 	}
 
 	// 5. Softmax with Temperature Scaling
@@ -109,7 +131,20 @@ func (m *InferenceModel) Forward(tokenIDs []uint32, temperature float32) ([]floa
 		temp = m.Temperature
 	}
 	if err := Softmax(buf.logits, temp, buf.probs); err != nil {
-		return nil, fmt.Errorf("softmax failed: %w", err)
+		return fmt.Errorf("softmax failed: %w", err)
+	}
+
+	return nil
+}
+
+// Forward executes the 2-layer MLP inference over a slice of token IDs and returns newly allocated probabilities.
+// Note: For zero-allocation hot paths, use PredictSlots or PredictTokens instead.
+func (m *InferenceModel) Forward(tokenIDs []uint32, temperature float32) ([]float32, error) {
+	buf := m.bufPool.Get().(*inferenceBuffer)
+	defer m.bufPool.Put(buf)
+
+	if err := m.forwardInternal(tokenIDs, temperature, buf); err != nil {
+		return nil, err
 	}
 
 	result := make([]float32, m.Header.NumClasses)
@@ -117,47 +152,126 @@ func (m *InferenceModel) Forward(tokenIDs []uint32, temperature float32) ([]floa
 	return result, nil
 }
 
-// PredictTokens computes class probabilities and returns the top label alongside its confidence score.
+// PredictSlots computes top-2 class predictions and entropy on the stack with ZERO heap allocation.
+func (m *InferenceModel) PredictSlots(tokenIDs []uint32, temperature float32) (StaticInferenceResult, error) {
+	buf := m.bufPool.Get().(*inferenceBuffer)
+	defer m.bufPool.Put(buf)
+
+	if err := m.forwardInternal(tokenIDs, temperature, buf); err != nil {
+		return StaticInferenceResult{}, err
+	}
+
+	var top1Idx, top2Idx int16 = -1, -1
+	var top1Prob, top2Prob float32 = -1.0, -1.0
+
+	for i, p := range buf.probs {
+		idx := int16(i)
+		if p > top1Prob {
+			top2Prob = top1Prob
+			top2Idx = top1Idx
+			top1Prob = p
+			top1Idx = idx
+		} else if p > top2Prob {
+			top2Prob = p
+			top2Idx = idx
+		}
+	}
+
+	var res StaticInferenceResult
+	if top1Idx >= 0 {
+		res.Primary = MatchSlot{Index: top1Idx, Confidence: top1Prob}
+		res.Total = 1
+	}
+	if top2Idx >= 0 {
+		res.Secondary = MatchSlot{Index: top2Idx, Confidence: top2Prob}
+		res.Total = 2
+	}
+	res.Entropy = computeEntropy(buf.probs)
+
+	return res, nil
+}
+
+// PredictTokens computes class probabilities and returns the top label alongside its confidence score with zero allocations.
 func (m *InferenceModel) PredictTokens(tokenIDs []uint32) (string, float64, error) {
-	probs, err := m.Forward(tokenIDs, m.Temperature)
+	res, err := m.PredictSlots(tokenIDs, m.Temperature)
 	if err != nil {
 		return "", 0.0, err
 	}
 
-	var bestIdx int
-	var maxProb float32 = -1.0
-
-	for i, p := range probs {
-		if p > maxProb {
-			maxProb = p
-			bestIdx = i
-		}
-	}
-
+	bestIdx := int(res.Primary.Index)
 	if bestIdx < 0 || bestIdx >= len(m.Labels) {
 		return "", 0.0, ErrClassIndexOutOfRange
 	}
 
-	return m.Labels[bestIdx], float64(maxProb), nil
+	return m.Labels[bestIdx], float64(res.Primary.Confidence), nil
 }
 
-// Predict tokenizes raw text with subword BPE and returns predicted label and confidence score with safety guards.
-func (m *InferenceModel) Predict(text string) (string, float64, error) {
-	// Guard 1: Validate UTF-8 and truncate oversized input strings
+// PredictDetailed executes inference and returns top-2 slots, calibrated confidence, and OOV ratio with zero allocations.
+func (m *InferenceModel) PredictDetailed(text string) (StaticInferenceResult, float64, error) {
 	if !utf8.ValidString(text) {
-		return "", 0.0, ErrEmptyInput
+		return StaticInferenceResult{}, 0.0, ErrEmptyInput
 	}
 	if len(text) > MaxInputBytes {
-		text = text[:MaxInputBytes]
+		text = TruncateToRuneBoundary(text, MaxInputBytes)
 	}
 
 	tokenIDs := m.Tokenizer.Encode(text)
 	if len(tokenIDs) == 0 {
-		if m.Header.VocabSize > 0 {
-			tokenIDs = []uint32{0}
-		} else {
-			return "", 0.0, ErrEmptyInput
+		return StaticInferenceResult{}, 0.0, ErrEmptyInput
+	}
+	if len(tokenIDs) > MaxSequenceTokens {
+		tokenIDs = tokenIDs[:MaxSequenceTokens]
+	}
+
+	res, err := m.PredictSlots(tokenIDs, m.Temperature)
+	if err != nil {
+		return StaticInferenceResult{}, 0.0, err
+	}
+
+	// Guard 3: Calculate UNK ratio and penalize confidence proportionally
+	var unkRatio float64
+	unkID, hasUnk := m.Tokenizer.VocabMap["[UNK]"]
+	if hasUnk && len(tokenIDs) > 0 {
+		unkCount := 0
+		for _, id := range tokenIDs {
+			if id == unkID {
+				unkCount++
+			}
 		}
+		unkRatio = float64(unkCount) / float64(len(tokenIDs))
+		decay := float32(1.0 - unkRatio)
+		res.Primary.Confidence *= decay
+		res.Secondary.Confidence *= decay
+	}
+
+	return res, unkRatio, nil
+}
+
+// TruncateToRuneBoundary truncates text to at most maxBytes without slicing multi-byte UTF-8 runes.
+func TruncateToRuneBoundary(text string, maxBytes int) string {
+	if len(text) <= maxBytes {
+		return text
+	}
+	idx := maxBytes
+	for idx > 0 && !utf8.RuneStart(text[idx]) {
+		idx--
+	}
+	return text[:idx]
+}
+
+// Predict tokenizes raw text with subword BPE and returns predicted label and confidence score with safety guards.
+func (m *InferenceModel) Predict(text string) (string, float64, error) {
+	// Guard 1: Validate UTF-8 and truncate oversized input strings respecting rune boundaries
+	if !utf8.ValidString(text) {
+		return "", 0.0, ErrEmptyInput
+	}
+	if len(text) > MaxInputBytes {
+		text = TruncateToRuneBoundary(text, MaxInputBytes)
+	}
+
+	tokenIDs := m.Tokenizer.Encode(text)
+	if len(tokenIDs) == 0 {
+		return "", 0.0, ErrEmptyInput
 	}
 
 	// Guard 2: Clamp sequence length to prevent excessive pooling latency

@@ -120,3 +120,64 @@ func TestMatMulVecAdd(t *testing.T) {
 		}
 	}
 }
+
+func TestOps_NumericalHardening_NaN_Inf_Clamping(t *testing.T) {
+	// 1. SafeClamp validation
+	nanVal := float32(math.NaN())
+	infVal := float32(math.Inf(1))
+	negInfVal := float32(math.Inf(-1))
+
+	if SafeClamp(nanVal, 100.0) != 0.0 {
+		t.Errorf("SafeClamp(NaN) expected 0.0, got %f", SafeClamp(nanVal, 100.0))
+	}
+	if SafeClamp(infVal, 100.0) != 0.0 {
+		t.Errorf("SafeClamp(+Inf) expected 0.0, got %f", SafeClamp(infVal, 100.0))
+	}
+	if SafeClamp(negInfVal, 100.0) != 0.0 {
+		t.Errorf("SafeClamp(-Inf) expected 0.0, got %f", SafeClamp(negInfVal, 100.0))
+	}
+	if SafeClamp(250.0, 100.0) != 100.0 {
+		t.Errorf("SafeClamp(250.0) expected 100.0, got %f", SafeClamp(250.0, 100.0))
+	}
+	if SafeClamp(-250.0, 100.0) != -100.0 {
+		t.Errorf("SafeClamp(-250.0) expected -100.0, got %f", SafeClamp(-250.0, 100.0))
+	}
+
+	// 2. GELU with extreme inputs
+	extremeGELU := GELU(1e20)
+	if math.IsNaN(float64(extremeGELU)) || math.IsInf(float64(extremeGELU), 0) || extremeGELU > 100.0 {
+		t.Errorf("GELU with extreme input breached clamping: %f", extremeGELU)
+	}
+
+	nanGELU := GELU(nanVal)
+	if nanGELU != 0.0 {
+		t.Errorf("GELU(NaN) expected 0.0, got %f", nanGELU)
+	}
+
+	// 3. MatMulVecAdd with NaN and Inf weights
+	corruptedVec := []float32{nanVal, infVal}
+	corruptedWeights := []float32{1.0, 2.0, 3.0, 4.0}
+	corruptedBias := []float32{nanVal, 10.0}
+	corruptedOut := make([]float32, 2)
+
+	if err := MatMulVecAdd(corruptedVec, corruptedWeights, corruptedBias, 2, 2, corruptedOut); err != nil {
+		t.Fatalf("MatMulVecAdd failed on corrupted input: %v", err)
+	}
+	for i, v := range corruptedOut {
+		if math.IsNaN(float64(v)) || math.IsInf(float64(v), 0) {
+			t.Errorf("MatMulVecAdd leaked NaN/Inf to out[%d]: %f", i, v)
+		}
+	}
+
+	// 4. Softmax with degenerated logits
+	degeneratedLogits := []float32{nanVal, infVal, -infVal}
+	degeneratedProbs := make([]float32, 3)
+	if err := Softmax(degeneratedLogits, 1.0, degeneratedProbs); err != nil {
+		t.Fatalf("Softmax failed on degenerated logits: %v", err)
+	}
+	for i, p := range degeneratedProbs {
+		if math.IsNaN(float64(p)) || math.IsInf(float64(p), 0) {
+			t.Errorf("Softmax leaked NaN/Inf to prob[%d]: %f", i, p)
+		}
+	}
+}

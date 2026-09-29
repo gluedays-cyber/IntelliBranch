@@ -13,14 +13,14 @@ var (
 	// MagicBytes is the 4-byte signature at the beginning of an IntelliBranch binary model ("IBRN").
 	MagicBytes = [4]byte{'I', 'B', 'R', 'N'}
 
-	// CurrentFormatVersion defines the supported serialization format version.
-	CurrentFormatVersion uint32 = 1
+	// CurrentFormatVersion defines the supported serialization format version (v2 supports Positional Embeddings).
+	CurrentFormatVersion uint32 = 2
 
-	ErrInvalidMagic    = errors.New("invalid binary format: missing IBRN magic header")
-	ErrUnsupportedVer  = errors.New("unsupported model format version")
-	ErrChecksumFailed  = errors.New("checksum verification failed: model file corrupted")
+	ErrInvalidMagic     = errors.New("invalid binary format: missing IBRN magic header")
+	ErrUnsupportedVer   = errors.New("unsupported model format version")
+	ErrChecksumFailed   = errors.New("checksum verification failed: model file corrupted")
 	ErrInvalidTensorDim = errors.New("tensor dimension does not match header configuration")
-	ErrEmptyInput      = errors.New("input token slice cannot be empty")
+	ErrEmptyInput       = errors.New("input token slice cannot be empty")
 )
 
 // Header contains the structural hyperparameters of the embedded neural model.
@@ -40,13 +40,14 @@ type MergeRule struct {
 	Target uint32
 }
 
-// Weights holds the linear algebra parameters for the embedding and 2-layer MLP.
+// Weights holds the linear algebra parameters for the embedding, positional encoding, and 2-layer MLP.
 type Weights struct {
-	Embedding []float32 // [VocabSize * EmbeddingDim]
-	W1        []float32 // [EmbeddingDim * HiddenDim]
-	B1        []float32 // [HiddenDim]
-	W2        []float32 // [HiddenDim * NumClasses]
-	B2        []float32 // [NumClasses]
+	Embedding  []float32 // [VocabSize * EmbeddingDim]
+	Positional []float32 // [MaxSequenceTokens * EmbeddingDim]
+	W1         []float32 // [EmbeddingDim * HiddenDim]
+	B1         []float32 // [HiddenDim]
+	W2         []float32 // [HiddenDim * NumClasses]
+	B2         []float32 // [NumClasses]
 }
 
 // SaveBinaryModel serializes an InferenceModel into a Little-Endian binary file with SHA-256 validation.
@@ -147,6 +148,20 @@ func SerializeModel(w io.Writer, model *InferenceModel) error {
 	if err := binary.Write(mw, binary.LittleEndian, model.Weights.Embedding); err != nil {
 		return err
 	}
+	// Write Positional Embeddings only for format version >= 2
+	if model.Header.Version >= 2 {
+		posLen := int(MaxSequenceTokens * model.Header.EmbeddingDim)
+		posWeights := model.Weights.Positional
+		if len(posWeights) < posLen {
+			paddedPos := make([]float32, posLen)
+			copy(paddedPos, posWeights)
+			posWeights = paddedPos
+		}
+		if err := binary.Write(mw, binary.LittleEndian, posWeights[:posLen]); err != nil {
+			return err
+		}
+	}
+
 	if err := binary.Write(mw, binary.LittleEndian, model.Weights.W1); err != nil {
 		return err
 	}
@@ -186,8 +201,8 @@ func DeserializeModel(r io.Reader) (*InferenceModel, error) {
 	if err := binary.Read(tr, binary.LittleEndian, &header.Version); err != nil {
 		return nil, err
 	}
-	if header.Version != CurrentFormatVersion {
-		return nil, fmt.Errorf("%w: got %d, expected %d", ErrUnsupportedVer, header.Version, CurrentFormatVersion)
+	if header.Version != 1 && header.Version != 2 {
+		return nil, fmt.Errorf("%w: got %d, expected version 1 or 2", ErrUnsupportedVer, header.Version)
 	}
 
 	if err := binary.Read(tr, binary.LittleEndian, &header.VocabSize); err != nil {
@@ -266,16 +281,23 @@ func DeserializeModel(r io.Reader) (*InferenceModel, error) {
 	}
 
 	// 5. Read Tensor Blocks
+	posLen := int(MaxSequenceTokens * header.EmbeddingDim)
 	weights := Weights{
-		Embedding: make([]float32, header.VocabSize*header.EmbeddingDim),
-		W1:        make([]float32, header.EmbeddingDim*header.HiddenDim),
-		B1:        make([]float32, header.HiddenDim),
-		W2:        make([]float32, header.HiddenDim*header.NumClasses),
-		B2:        make([]float32, header.NumClasses),
+		Embedding:  make([]float32, header.VocabSize*header.EmbeddingDim),
+		Positional: make([]float32, posLen),
+		W1:         make([]float32, header.EmbeddingDim*header.HiddenDim),
+		B1:         make([]float32, header.HiddenDim),
+		W2:         make([]float32, header.HiddenDim*header.NumClasses),
+		B2:         make([]float32, header.NumClasses),
 	}
 
 	if err := binary.Read(tr, binary.LittleEndian, weights.Embedding); err != nil {
 		return nil, fmt.Errorf("failed to read embedding table: %w", err)
+	}
+	if header.Version >= 2 {
+		if err := binary.Read(tr, binary.LittleEndian, weights.Positional); err != nil {
+			return nil, fmt.Errorf("failed to read positional table: %w", err)
+		}
 	}
 	if err := binary.Read(tr, binary.LittleEndian, weights.W1); err != nil {
 		return nil, fmt.Errorf("failed to read W1: %w", err)
