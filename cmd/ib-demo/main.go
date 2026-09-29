@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -19,11 +20,38 @@ type TestCase struct {
 type DemoSuite struct {
 	DomainName  string
 	ModelPath   string
+	DataPath    string
 	Description string
 	Policy      intellibranch.DispatchPolicy
 	SetupRouter func(r *intellibranch.Router)
 	TestCases   []TestCase
 	CustomRun   func(r *intellibranch.Router, ctx context.Context)
+}
+
+func ensureModel(modelPath, dataPath string) {
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		log.Printf("Model [%s] not found. Auto-training on-the-fly from [%s]...", modelPath, dataPath)
+		samples, err := intellibranch.LoadCSVDataset(dataPath)
+		if err != nil {
+			log.Fatalf("Failed to load dataset %s: %v", dataPath, err)
+		}
+
+		cfg := intellibranch.DefaultTrainConfig()
+		cfg.Epochs = 80
+		cfg.LearningRate = 0.005
+		cfg.TargetVocabSize = 110
+
+		model, err := intellibranch.TrainModel(samples, cfg)
+		if err != nil {
+			log.Fatalf("Auto-training failed for %s: %v", modelPath, err)
+		}
+
+		_ = os.MkdirAll("weights", 0755)
+		if err := intellibranch.SaveBinaryModel(modelPath, model); err != nil {
+			log.Fatalf("Failed to serialize model %s: %v", modelPath, err)
+		}
+		log.Printf("Successfully compiled [%s] in memory.", modelPath)
+	}
 }
 
 func main() {
@@ -34,6 +62,7 @@ func main() {
 		"cs": {
 			DomainName:  "1. E-Commerce CS Gateway (XOR Order & Multi-Intent Pipeline)",
 			ModelPath:   "weights/demo_cs.bin",
+			DataPath:    "data/demo_cs.csv",
 			Description: "Demonstrates semantic XOR disambiguation, composite multi-intent pipeline, and fallback.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.70,
@@ -77,6 +106,7 @@ func main() {
 		"llm": {
 			DomainName:  "2. Semantic LLM Gateway & Cloud API Bypass",
 			ModelPath:   "weights/demo_llm.bin",
+			DataPath:    "data/demo_llm.csv",
 			Description: "Resolves known banking intents in ~30 μs locally, bypassing $0.03 cloud LLM costs.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.75,
@@ -114,6 +144,7 @@ func main() {
 		"sre": {
 			DomainName:  "3. High-Throughput SRE Log Triage (Zero Allocation: 0 B/op)",
 			ModelPath:   "weights/demo_sre.bin",
+			DataPath:    "data/demo_sre.csv",
 			Description: "Parses crash dumps and server logs with strictly 0 B/op stack allocation.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
 			SetupRouter: func(r *intellibranch.Router) {
@@ -162,6 +193,7 @@ func main() {
 		"iot": {
 			DomainName:  "4. Offline Edge IoT Command Dispatcher",
 			ModelPath:   "weights/demo_iot.bin",
+			DataPath:    "data/demo_iot.csv",
 			Description: "Sub-milliwatt, sub-180KB offline smart home command router with slang resilience.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
 			SetupRouter: func(r *intellibranch.Router) {
@@ -192,6 +224,7 @@ func main() {
 		"cicd": {
 			DomainName:  "5. Automated CI/CD Failure Triage & Self-Healing",
 			ModelPath:   "weights/demo_cicd.bin",
+			DataPath:    "data/demo_cicd.csv",
 			Description: "Analyzes build error tail logs to determine automated remediation actions.",
 			Policy:      intellibranch.DefaultDispatchPolicy(),
 			SetupRouter: func(r *intellibranch.Router) {
@@ -222,6 +255,7 @@ func main() {
 		"fintech": {
 			DomainName:  "6. FinTech Transaction Memo Audit & Fraud Prevention",
 			ModelPath:   "weights/demo_fintech.bin",
+			DataPath:    "data/demo_fintech.csv",
 			Description: "Real-time remittance inspection for scam interception and 2FA triggers.",
 			Policy: intellibranch.DispatchPolicy{
 				HighThreshold:     0.70,
@@ -281,6 +315,9 @@ func main() {
 		fmt.Printf("    Model Path  : %s\n", suite.ModelPath)
 		fmt.Printf("    Capability  : %s\n", suite.Description)
 		fmt.Printf("    ----------------------------------------------------------------------------\n")
+
+		// Auto-train model on-the-fly if binary is absent (zero manual downloads required)
+		ensureModel(suite.ModelPath, suite.DataPath)
 
 		router, err := intellibranch.NewRouter(suite.ModelPath, suite.Policy.HighThreshold)
 		if err != nil {

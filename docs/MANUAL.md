@@ -1305,22 +1305,27 @@ The test driver coordinates 6 separate specialized models compiled from domain d
 | **5. Automated CI/CD Remediation**| `weights/demo_cicd.bin` | `data/demo_cicd.csv`| Build failure triage: Auto-Retry (`Network`), Scale-Up (`OOM`), Notify (`Syntax`). |
 | **6. FinTech Memo Fraud Audit** | `weights/demo_fintech.bin`| `data/demo_fintech.csv`| Real-time scam interception & Borderline Step-Up 2FA Challenge (`Ambiguous`). |
 
-### 9.2. Compiling and Running the Driver
+### 9.2. Compiling and Running the Driver (Zero-Download Auto-Training)
+
+Because IntelliBranch forges its domain neural models directly from dataset CSVs without downloading third-party weights, **no manual weight downloads are necessary**. When `ib-demo` runs, it detects missing binary models and auto-trains them in memory in under 2 seconds:
 
 ```bash
-# 1. Compile the demo CLI binary
+# Option 1: Direct instantaneous run via Go CLI
+go run ./cmd/ib-demo
+
+# Option 2: Compile a static standalone binary
 go build -ldflags="-s -w" -o bin/ib-demo.exe ./cmd/ib-demo
 
-# 2. Run all 6 domains sequentially in automated showcase mode
+# Run all 6 domains sequentially in automated showcase mode
 ./bin/ib-demo.exe -domain all
 
-# 3. Or inspect a single isolated domain
-./bin/ib-demo.exe -domain cs
-./bin/ib-demo.exe -domain llm
-./bin/ib-demo.exe -domain sre
-./bin/ib-demo.exe -domain iot
-./bin/ib-demo.exe -domain cicd
-./bin/ib-demo.exe -domain fintech
+# Or inspect a specific enterprise domain
+./bin/ib-demo.exe -domain cs       # E-Commerce CS Gateway (XOR & Multi-Intent Pipeline)
+./bin/ib-demo.exe -domain llm      # Semantic LLM Gateway & Cloud Bypass ($0.00 vs $0.02)
+./bin/ib-demo.exe -domain sre      # High-Throughput SRE Log Triage (0 B/op via PredictSlots)
+./bin/ib-demo.exe -domain iot      # Offline Edge IoT Command Dispatcher
+./bin/ib-demo.exe -domain cicd     # Automated CI/CD Failure Triage & Self-Healing
+./bin/ib-demo.exe -domain fintech  # FinTech Transaction Memo Audit & 2FA Challenge
 ```
 
 ### 9.3. Sample Output

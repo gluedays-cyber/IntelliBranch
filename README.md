@@ -262,18 +262,29 @@ IntelliBranch comes bundled with a production-grade multi-task demonstration dri
 | **5. Automated CI/CD Remediation**| `weights/demo_cicd.bin` | `data/demo_cicd.csv`| Build failure tail triage: Auto-Retry (`Network`), Scale-Up (`OOM`), Notify (`Syntax`) |
 | **6. FinTech Memo Fraud Audit** | `weights/demo_fintech.bin`| `data/demo_fintech.csv`| Real-time scam interception & Borderline Step-Up 2FA Challenge (`Ambiguous`) |
 
-### Running the Demonstration CLI
+### Zero-Download On-The-Fly Demonstration Driver
+
+Because IntelliBranch manufactures its own neural models directly from code, **you do NOT need to download pre-trained weights from HuggingFace or Git LFS**. 
+
+When `ib-demo` is executed for the first time, its built-in auto-training bootstrap reads the domain CSV datasets in `data/demo_*.csv` and compiles all 6 Little-Endian binary models in memory in under 2 seconds:
 
 ```bash
-# Compile the demonstration driver
+# Option 1: Instant direct run (auto-trains missing models and executes showcase)
+go run ./cmd/ib-demo
+
+# Option 2: Compile static standalone binary
 go build -ldflags="-s -w" -o bin/ib-demo.exe ./cmd/ib-demo
 
-# Run all 6 domains sequentially
+# Run all 6 domains sequentially in automated showcase mode
 ./bin/ib-demo.exe -domain all
 
-# Or inspect an isolated domain
-./bin/ib-demo.exe -domain sre
-./bin/ib-demo.exe -domain llm
+# Or inspect a specific enterprise domain
+./bin/ib-demo.exe -domain cs       # E-Commerce CS Gateway (XOR & Multi-Intent Pipeline)
+./bin/ib-demo.exe -domain llm      # Semantic LLM Gateway & Cloud Bypass ($0.00 local vs $0.02 cloud)
+./bin/ib-demo.exe -domain sre      # High-Throughput SRE Log Triage (0 B/op via PredictSlots)
+./bin/ib-demo.exe -domain iot      # Offline Edge IoT Command Dispatcher
+./bin/ib-demo.exe -domain cicd     # Automated CI/CD Failure Triage & Self-Healing
+./bin/ib-demo.exe -domain fintech  # FinTech Transaction Memo Audit & 2FA Challenge
 ```
 
 ---
