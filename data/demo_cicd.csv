@@ -4,22 +4,38 @@ dial tcp: lookup registry-1.docker.io on 127.0.0.53:53: read udp i/o timeout,Net
 git clone failed unexpected EOF while receiving object pack from github,NetworkTimeoutRetry
 connection reset by peer during maven dependency resolution download,NetworkTimeoutRetry
 error downloading gradle distribution http 504 gateway timeout,NetworkTimeoutRetry
+connection dropped while fetching debian apt repository packages,NetworkTimeoutRetry
+fatal: unable to access github repository could not resolve host,NetworkTimeoutRetry
+pip install failed read timed out waiting for pypi.org socket response,NetworkTimeoutRetry
+npm err fetch failed with status code 503 backend service unavailable,NetworkTimeoutRetry
+docker pull failed tls handshake timeout communicating with registry,NetworkTimeoutRetry
 Command terminated by signal 9 SIGKILL exit status 137 runner ran out of memory,ResourceScaleUp
 fatal error: runtime: out of memory allocating 8589934592 bytes during build,ResourceScaleUp
 Disk quota exceeded: cannot write /tmp/build-artifact.tar no space left on device,ResourceScaleUp
 gcc: fatal error: Killed (program cc1plus) virtual memory exhausted,ResourceScaleUp
 runner pod was evicted due to ephemeral storage node pressure limit,ResourceScaleUp
+kubernetes runner killed OOM during parallel webpack compilation,ResourceScaleUp
+container process terminated with OOMKilled exit code 137,ResourceScaleUp
+insufficient disk space on agent workspace partition to unpack bundle,ResourceScaleUp
+heap memory exhausted during java gradle test suite execution,ResourceScaleUp
+clang killed by operating system kernel after exceeding cgroup limit,ResourceScaleUp
 syntax error: unexpected token semicolon at line 144 column 2,CodeSyntaxAlert
 cannot use variable of type string as type int in argument to processTransaction,CodeSyntaxAlert
 package golang.org/x/crypto is not in stdlib imported in main.go:8,CodeSyntaxAlert
 undefined reference to symbol pthread_create in file runtime.o,CodeSyntaxAlert
 eslint found 12 compilation errors parsing jsx template component,CodeSyntaxAlert
+type mismatch compiler cannot convert interface to struct pointer,CodeSyntaxAlert
+typescript compile error property does not exist on type user profile,CodeSyntaxAlert
+rustc borrow checker error cannot borrow immutable local variable as mutable,CodeSyntaxAlert
+python indentation error unindent does not match any outer indentation level,CodeSyntaxAlert
+missing return statement at end of non-void function handler,CodeSyntaxAlert
 checksum mismatch for cached layer sha256:4a8b invalid local tar,CacheEvict
 corrupted go build cache detected in /root/.cache/go-build please clean,CacheEvict
 stale npm cache detected causing hash verification failure on lockfile,CacheEvict
 purge stale yarn cache integrity verification checksum error,CacheEvict
 maven local repository corrupt artifact metadata invalid signature,CacheEvict
-connection dropped while fetching debian apt repository packages,NetworkTimeoutRetry
-kubernetes runner killed OOM during parallel webpack compilation,ResourceScaleUp
-type mismatch compiler cannot convert interface to struct pointer,CodeSyntaxAlert
 docker build cache layer damaged header checksum invalid,CacheEvict
+invalid zip archive header in cached dependency bundle,CacheEvict
+gradle build cache corrupted entry sha1 mismatch rebuilding target,CacheEvict
+cache entry poisoned by incomplete write operation please flush,CacheEvict
+clear corrupted compiler artifact cache before resuming job,CacheEvict

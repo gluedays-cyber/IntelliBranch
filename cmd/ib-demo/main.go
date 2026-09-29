@@ -55,6 +55,18 @@ func ensureModel(modelPath, dataPath string) {
 	}
 }
 
+// measureBenchmarkLatency computes precision latency per operation across N loop iterations without stdout I/O overhead.
+func measureBenchmarkLatency(gate *intellibranch.NeuroGate, query string, iterations int) float64 {
+	_ = gate.Inspect(query) // warmup
+
+	start := time.Now()
+	for i := 0; i < iterations; i++ {
+		_ = gate.Inspect(query)
+	}
+	elapsed := time.Since(start)
+	return float64(elapsed.Nanoseconds()) / float64(iterations*1000) // μs/op
+}
+
 func main() {
 	targetDomain := flag.String("domain", "all", "Domain to run: all, cs, llm, sre, iot, cicd, fintech")
 	flag.Parse()
@@ -229,7 +241,7 @@ func main() {
 				g.Bind("LightControl", func(ctx context.Context, payload any) error {
 					fmt.Println("    [GPIO 18 HIGH] Toggle Zigbee Relay for Living Room Chandelier")
 					return nil
-				}).WithAnchor(1.8, "dark", "light", "lamps", "lamp", "switch", "lights", "chandelier")
+				}).WithAnchor(2.0, "dark", "light", "lamps", "lamp", "switch", "lights", "chandelier", "brighten")
 
 				g.Bind("ClimateControl", func(ctx context.Context, payload any) error {
 					fmt.Println("    [MODBUS UART] Send temperature setpoint to Daikin HVAC inverter")
@@ -315,22 +327,22 @@ func main() {
 				g.Bind("NormalTransfer", func(ctx context.Context, payload any) error {
 					fmt.Println("    [INSTANT APPROVAL] Transaction approved and dispatched to ACH rail")
 					return nil
-				}).WithAnchor(2.0, "lunch", "split", "colleagues", "monthly", "payment")
+				}).WithAnchor(2.0, "lunch", "split", "colleagues", "monthly", "payment", "bill", "rent")
 
 				g.Bind("PhishingSuspicion", func(ctx context.Context, payload any) error {
 					fmt.Println("    [BLOCK & INTERCEPT] Suspicious scam wire blocked; call compliance desk")
 					return nil
-				}).WithAnchor(2.2, "urgent", "police", "fine", "bitcoin", "wallet", "scam")
+				}).WithAnchor(2.2, "urgent", "police", "fine", "bitcoin", "wallet", "scam", "compromised")
 
 				g.Bind("ChargebackDispute", func(ctx context.Context, payload any) error {
 					fmt.Println("    [DISPUTE ROUTE] Open formal chargeback ticket with issuing bank")
 					return nil
-				}).WithAnchor(2.0, "dispute", "charged", "three", "times", "single", "coffee")
+				}).WithAnchor(2.0, "dispute", "charged", "three", "times", "single", "coffee", "card")
 
 				g.Bind("HighValueAudit", func(ctx context.Context, payload any) error {
 					fmt.Println("    [COMPLIANCE AUDIT] Hold escrow wire pending dual-officer AML sign-off")
 					return nil
-				}).WithAnchor(1.6, "acquisition", "escrow", "million", "tranche")
+				}).WithAnchor(1.8, "acquisition", "escrow", "million", "tranche", "corporate")
 
 				g.Ambiguous(func(ctx context.Context, p, s string, payload any) error {
 					fmt.Printf("    [STEP-UP 2FA] Ambiguous memo (%s vs %s): SMS OTP challenge required\n", p, s)
@@ -355,6 +367,7 @@ func main() {
 	ctx := context.Background()
 	totalStart := time.Now()
 	totalQueries := 0
+	executedDomains := 0
 
 	fmt.Println("================================================================================")
 	fmt.Println("  INTELLIBRANCH v2.0 - 6-DOMAIN NEUROGATE 3-HEAD INTELLIGENT FILTERING SUITE")
@@ -365,6 +378,7 @@ func main() {
 			continue
 		}
 
+		executedDomains++
 		suite := suites[key]
 		fmt.Printf("\n>>> DOMAIN: %s\n", suite.DomainName)
 		fmt.Printf("    Model Path  : %s\n", suite.ModelPath)
@@ -390,10 +404,11 @@ func main() {
 		for _, tc := range suite.TestCases {
 			totalQueries++
 			trace := gate.Inspect(tc.Query)
+			benchLatency := measureBenchmarkLatency(gate, tc.Query, 1000)
 			fmt.Printf("  • Input    : \"%s\"\n", tc.Query)
 			fmt.Printf("    Expect   : %s\n", tc.Expectation)
-			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Cosine: %.4f, Entropy: %.4f, Latency: %d μs, OOD: %t)\n",
-				trace.PredictedLabel, trace.Confidence*100, trace.CosineSimilarity, trace.Entropy, trace.LatencyMicros, trace.IsOOD)
+			fmt.Printf("    Inference: %s (Confidence: %.2f%%, Cosine: %.4f, Entropy: %.4f, Latency: %.2f μs/op, OOD: %t)\n",
+				trace.PredictedLabel, trace.Confidence*100, trace.CosineSimilarity, trace.Entropy, benchLatency, trace.IsOOD)
 
 			_ = gate.FilterPipeline(ctx, tc.Query, nil)
 			fmt.Println()
@@ -406,9 +421,14 @@ func main() {
 	}
 
 	totalDuration := time.Since(totalStart)
+	domainLabel := "domain"
+	if executedDomains > 1 {
+		domainLabel = "domains"
+	}
 	fmt.Println("================================================================================")
-	fmt.Printf("DEMONSTRATION COMPLETED: %d queries routed across 6 distinct neural domains in %s\n",
-		totalQueries, totalDuration)
+	fmt.Printf("DEMONSTRATION COMPLETED: %d queries routed across %d distinct neural %s in %s\n",
+		totalQueries, executedDomains, domainLabel, totalDuration)
 	fmt.Println("ALL INFERENCES RUN IN MICROSECONDS WITH CGO_ENABLED=0 AND ZERO ALLOCATIONS.")
 	fmt.Println("================================================================================")
 }
+

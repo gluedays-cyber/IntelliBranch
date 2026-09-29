@@ -5,23 +5,45 @@ dim bedroom lighting to thirty percent brightness,LightControl
 shut off all lights on the second floor,LightControl
 change kitchen undercabinet lights to warm white,LightControl
 turn lights down movie night mode,LightControl
+switch on hallway chandelier,LightControl
+too dark in the basement turn on desk lamp,LightControl
+illuminate front porch lights at sunset,LightControl
+brighten reading lamps in home office,LightControl
+turn off bedside table lamp bedtime mode,LightControl
+activate ambient evening lighting in dining room,LightControl
 set air conditioner temperature to seventy two degrees,ClimateControl
 it feels freezing in this room turn up the heat,ClimateControl
 cooling mode on maximum fan speed in master bedroom,ClimateControl
 turn off the thermostat when leaving the house,ClimateControl
 set target humidity to forty percent on dehumidifier,ClimateControl
 increase heating temperature by two degrees,ClimateControl
+air conditioning feels too hot lower temp please,ClimateControl
+crank up the air conditioner cooling to sixty eight,ClimateControl
+turn on oscillating tower fan in guest bedroom,ClimateControl
+switch thermostat to eco mode for the night,ClimateControl
+decrease bedroom heating temperature by three degrees,ClimateControl
+run ventilation exhaust fan in master bathroom,ClimateControl
 lock the front entrance smart door deadbolt immediately,DoorLock
 did i leave the back patio door unlocked please check and lock,DoorLock
 unlock side garage door for courier delivery,DoorLock
 secure all exterior doors and arm deadbolts,DoorLock
 open front door lock code entered successfully,DoorLock
+ensure all window and door locks are locked,DoorLock
+engage motorized deadbolt on side entry door,DoorLock
+unlock front gate smart deadbolt for visitor,DoorLock
+check lock status on basement backdoor,DoorLock
+auto lock all smart deadbolts in ten minutes,DoorLock
+disengage master bedroom interior door lock,DoorLock
+secure garage roller door and lock deadbolts,DoorLock
 play smooth jazz music on living room soundbar,MediaPlayback
 pause audio streaming on kitchen smart speaker,MediaPlayback
 skip to the next track on spotify playlist,MediaPlayback
 turn up speaker volume to eighty percent,MediaPlayback
 stop podcast playback across all rooms,MediaPlayback
-switch on hallway chandelier,LightControl
-air conditioning feels too hot lower temp please,ClimateControl
-ensure all window and door locks are locked,DoorLock
 resume playing audiobook on bedroom audio,MediaPlayback
+shuffle my classical music playlist on soundbar,MediaPlayback
+mute television soundbar during incoming call,MediaPlayback
+stream acoustic guitar songs on patio speakers,MediaPlayback
+lower media playback volume to twenty percent,MediaPlayback
+play latest daily news briefing on smart display,MediaPlayback
+resume audio track on living room stereo system,MediaPlayback
