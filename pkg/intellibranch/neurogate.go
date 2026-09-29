@@ -227,8 +227,8 @@ func (g *NeuroGate) CalibrateDomainCentroid(samples []DataSample) *NeuroGate {
 	var sum [MaxGateEmbDim]float64
 	validCount := 0
 	var pooled [MaxGateEmbDim]float32
-	var dummyLogits [MaxGateClasses]float32
 
+	var dummyLogits [MaxGateClasses]float32
 	for _, s := range samples {
 		tokens := model.Tokenizer.Encode(s.Text)
 		if len(tokens) == 0 {

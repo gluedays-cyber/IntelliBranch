@@ -38,7 +38,7 @@ func ensureModel(modelPath, dataPath string) {
 		}
 
 		cfg := intellibranch.DefaultTrainConfig()
-		cfg.Epochs = 150
+		cfg.Epochs = 60
 		cfg.LearningRate = 0.003
 		cfg.TargetVocabSize = 256
 
@@ -81,7 +81,7 @@ func main() {
 				HighThreshold:     0.70,
 				LowThreshold:      0.35,
 				MarginCutoff:      0.15,
-				MaxEntropy:        1.25,
+				MaxEntropy:        0.70,
 				PipelineThreshold: 0.25,
 			},
 			MinCosine: 0.35,
@@ -89,22 +89,22 @@ func main() {
 				g.Bind("Refund", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Refund] Process refund request & reverse charge")
 					return nil
-				}).WithAnchor(1.2, "refund", "money", "card", "charge", "return")
+				}).WithAnchor(1.3, "refund", "money", "card", "charge", "return")
 
 				g.Bind("Delivery", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Delivery] Query courier GPS tracking & update address")
 					return nil
-				}).WithAnchor(1.2, "courier", "delivered", "package", "delivery", "box", "shipping")
+				}).WithAnchor(1.3, "courier", "delivered", "package", "delivery", "box", "shipping")
 
 				g.Bind("Account", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Account] Trigger security verification & unlock profile")
 					return nil
-				}).WithAnchor(1.2, "account", "login", "password", "security")
+				}).WithAnchor(1.3, "account", "login", "password", "security", "portal", "profile", "factor")
 
 				g.Bind("Payment", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ACTION: Payment] Retry checkout gateway & validate billing")
 					return nil
-				}).WithAnchor(1.2, "payment", "checkout", "billing", "pay")
+				}).WithAnchor(1.3, "payment", "checkout", "billing", "pay", "declined")
 
 				pipelineHandler := func(ctx context.Context, p, s string, payload any) error {
 					fmt.Printf("    [PIPELINE: %s -> %s] Return box approved THEN update reshipment destination\n", p, s)
@@ -123,6 +123,8 @@ func main() {
 			TestCases: []TestCase{
 				{Query: "please refund the money to my card", Expectation: "Definite Refund"},
 				{Query: "courier marked delivered but package is missing", Expectation: "Definite Delivery"},
+				{Query: "i forgot my account password and cannot log into the user portal", Expectation: "Definite Account"},
+				{Query: "my credit card was declined at checkout with transaction error code 402", Expectation: "Definite Payment"},
 				{Query: "i returned the box please update delivery", Expectation: "Multi-Intent Pipeline (Refund -> Delivery)"},
 				{Query: "refund delivery", Expectation: "Positional XOR Sequence Disambiguation"},
 				{Query: "what is the meaning of quantum black holes", Expectation: "OOD / Fallback Isolation"},
@@ -145,22 +147,22 @@ func main() {
 				g.Bind("QueryBalance", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Fetched balance from Redis cache in 30 μs (Cost: $0.00)")
 					return nil
-				}).WithAnchor(1.2, "balance", "checking", "account", "funds")
+				}).WithAnchor(1.3, "balance", "checking", "account", "funds", "savings")
 
 				g.Bind("TransferFunds", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Executed internal ledger transaction directly (Cost: $0.00)")
 					return nil
-				}).WithAnchor(1.2, "transfer", "send", "dollars", "wire")
+				}).WithAnchor(1.3, "transfer", "send", "dollars", "wire", "remit")
 
 				g.Bind("CardLock", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Instant freeze signal emitted to Visa processor (Cost: $0.00)")
 					return nil
-				}).WithAnchor(1.2, "freeze", "lock", "debit", "card", "lost")
+				}).WithAnchor(1.3, "freeze", "lock", "debit", "card", "lost", "stolen")
 
 				g.Bind("UpdateProfile", func(ctx context.Context, payload any) error {
 					fmt.Println("    [LOCAL BYPASS] Profile update form rendered (Cost: $0.00)")
 					return nil
-				}).WithAnchor(1.2, "profile", "update", "address", "phone")
+				}).WithAnchor(1.3, "profile", "update", "address", "phone", "residential", "email")
 
 				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [CLOUD LLM ESCAPE] High entropy/OOD query forwarded to OpenAI GPT-4o (Cost: $0.02)")
@@ -169,8 +171,10 @@ func main() {
 			},
 			TestCases: []TestCase{
 				{Query: "what is my current checking account balance", Expectation: "Local Bypass: QueryBalance"},
+				{Query: "how much money is remaining in my personal savings account", Expectation: "Local Bypass: QueryBalance"},
 				{Query: "send five hundred dollars to john doe from checking", Expectation: "Local Bypass: TransferFunds"},
-				{Query: "freeze my debit card immediately i lost my wallet", Expectation: "Local Bypass: CardLock"},
+				{Query: "freeze my debit card immediately i lost my leather wallet", Expectation: "Local Bypass: CardLock"},
+				{Query: "update my residential street address in my user profile", Expectation: "Local Bypass: UpdateProfile"},
 				{Query: "explain how quantum entanglement works in simple terms", Expectation: "Cloud LLM Fallback (OOD)"},
 				{Query: "write a python script to scrape stock prices", Expectation: "Cloud LLM Fallback (OOD)"},
 			},
@@ -186,22 +190,22 @@ func main() {
 				g.Bind("OutOfMemory", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P0 CRITICAL] Trigger Horizontal Pod Autoscaler & restart worker")
 					return nil
-				}).WithAnchor(1.5, "memory", "oom", "allocating", "starvation", "killed")
+				}).WithAnchor(1.5, "memory", "oom", "allocating", "starvation", "killed", "oomkilled", "137")
 
 				g.Bind("DBPoolExhausted", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P1 WARNING] Increase PostgreSQL pool cap and kill idle connections")
 					return nil
-				}).WithAnchor(1.5, "hikaripool", "connection", "pool", "timeout", "timed")
+				}).WithAnchor(1.5, "hikaripool", "connection", "pool", "timeout", "timed", "postgres", "slots")
 
 				g.Bind("AuthBruteForce", func(ctx context.Context, payload any) error {
 					fmt.Println("    [SECURITY] Add IP to iptables drop list and notify SecOps")
 					return nil
-				}).WithAnchor(1.5, "security", "login", "attempts", "alert", "brute")
+				}).WithAnchor(1.5, "security", "login", "attempts", "alert", "brute", "fail2ban", "ssh")
 
 				g.Bind("SystemHealth", func(ctx context.Context, payload any) error {
 					fmt.Println("    [P3 INFO] Metric collected without alerting on-call")
 					return nil
-				}).WithAnchor(1.5, "health", "probe", "healthz", "200", "ok")
+				}).WithAnchor(1.5, "health", "probe", "healthz", "200", "ok", "heartbeat", "nominal")
 
 				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [UNKNOWN LOG] Streamed to cold storage archive")
@@ -210,9 +214,13 @@ func main() {
 			},
 			TestCases: []TestCase{
 				{Query: "fatal error: runtime: out of memory allocating 4194304 bytes", Expectation: "P0 OutOfMemory"},
+				{Query: "container exited with code 137 OOMKilled cgroup memory limit exceeded", Expectation: "P0 OutOfMemory"},
 				{Query: "HikariPool-1 - Connection is not available request timed out after 30000ms", Expectation: "P1 DBPoolExhausted"},
+				{Query: "org.postgresql.util.PSQLException: FATAL: remaining connection slots are reserved", Expectation: "P1 DBPoolExhausted"},
 				{Query: "SECURITY ALERT: 250 failed login attempts in 60 seconds from single IP", Expectation: "Security AuthBruteForce"},
+				{Query: "Fail2ban banned host 192.168.1.100 for 3600 seconds after 10 failed login attempts", Expectation: "Security AuthBruteForce"},
 				{Query: "INFO: health check probe /healthz returned 200 OK latency: 2ms", Expectation: "P3 SystemHealth"},
+				{Query: "Heartbeat ping received from worker node status healthy", Expectation: "P3 SystemHealth"},
 			},
 			CustomRun: func(g *intellibranch.NeuroGate, ctx context.Context) {
 				fmt.Println("    [Zero-Allocation Stack Demonstration via FilterTokens]")
@@ -246,7 +254,7 @@ func main() {
 				g.Bind("ClimateControl", func(ctx context.Context, payload any) error {
 					fmt.Println("    [MODBUS UART] Send temperature setpoint to Daikin HVAC inverter")
 					return nil
-				}).WithAnchor(1.8, "cooling", "heat", "fan", "temp", "temperature", "ac", "air")
+				}).WithAnchor(1.8, "cooling", "heat", "fan", "temp", "temperature", "ac", "air", "heating", "celsius")
 
 				g.Bind("DoorLock", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ZWAVE COMMAND] Engage motorized deadbolt locking mechanism")
@@ -256,7 +264,7 @@ func main() {
 				g.Bind("MediaPlayback", func(ctx context.Context, payload any) error {
 					fmt.Println("    [ALSA AUDIO] Resume Spotify streaming on soundbar")
 					return nil
-				}).WithAnchor(1.8, "play", "jazz", "music", "soundbar", "spotify", "song")
+				}).WithAnchor(1.8, "play", "jazz", "music", "soundbar", "spotify", "song", "pause", "audio")
 
 				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUDIO PROMPT] 'Sorry, I did not catch that command'")
@@ -264,10 +272,14 @@ func main() {
 				})
 			},
 			TestCases: []TestCase{
-				{Query: "it is too dark in here please switch on lamps", Expectation: "LightControl (Slang/Context Anchor Boost)"},
+				{Query: "it is too dark in here please switch on lamps in living room", Expectation: "LightControl (Slang/Context Anchor Boost)"},
+				{Query: "turn on the chandelier lights above dining table", Expectation: "LightControl"},
 				{Query: "cooling mode on maximum fan speed in master bedroom", Expectation: "ClimateControl"},
+				{Query: "set living room temperature setpoint to 21 degrees celsius", Expectation: "ClimateControl"},
 				{Query: "lock the front entrance smart door deadbolt immediately", Expectation: "DoorLock"},
-				{Query: "play smooth jazz music on living room soundbar", Expectation: "MediaPlayback"},
+				{Query: "unlock front door deadbolt for delivery courier guest", Expectation: "DoorLock"},
+				{Query: "play smooth jazz music on living room soundbar speaker", Expectation: "MediaPlayback"},
+				{Query: "pause spotify audio playback on bedroom speaker", Expectation: "MediaPlayback"},
 			},
 		},
 		"cicd": {
@@ -281,22 +293,22 @@ func main() {
 				g.Bind("NetworkTimeoutRetry", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Retry transient build step after 5s backoff")
 					return nil
-				}).WithAnchor(1.6, "timeout", "curl", "connect", "timed", "port")
+				}).WithAnchor(1.6, "timeout", "curl", "connect", "timed", "port", "handshake", "tls")
 
 				g.Bind("ResourceScaleUp", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Re-queue job on 64GB High-Memory Runner Pod")
 					return nil
-				}).WithAnchor(1.6, "sigkill", "memory", "137", "killed", "runner")
+				}).WithAnchor(1.6, "sigkill", "memory", "137", "killed", "runner", "exhausted", "quota")
 
 				g.Bind("CodeSyntaxAlert", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO NOTIFY] Block PR merge and notify author via Slack/Git comment")
 					return nil
-				}).WithAnchor(1.8, "syntax", "semicolon", "unexpected", "token", "column")
+				}).WithAnchor(1.8, "syntax", "semicolon", "unexpected", "token", "column", "variable", "string")
 
 				g.Bind("CacheEvict", func(ctx context.Context, payload any) error {
 					fmt.Println("    [AUTO REMEDIATION] Invalidate layer cache and rebuild from scratch")
 					return nil
-				}).WithAnchor(1.6, "cache", "clean", "corrupted", "build")
+				}).WithAnchor(1.6, "cache", "clean", "corrupted", "build", "checksum", "sha256")
 
 				g.Fallback(func(ctx context.Context, payload any) error {
 					fmt.Println("    [MANUAL TRIAGE] Flag build for human DevOps on-call review")
@@ -305,9 +317,13 @@ func main() {
 			},
 			TestCases: []TestCase{
 				{Query: "curl: (28) Failed to connect to registry.npmjs.org port 443: Connection timed out", Expectation: "Auto-Retry: NetworkTimeoutRetry"},
+				{Query: "docker pull failed tls handshake timeout communicating with registry", Expectation: "Auto-Retry: NetworkTimeoutRetry"},
 				{Query: "Command terminated by signal 9 SIGKILL exit status 137 runner ran out of memory", Expectation: "Scale-Up: ResourceScaleUp"},
+				{Query: "gcc: fatal error: Killed (program cc1plus) virtual memory exhausted", Expectation: "Scale-Up: ResourceScaleUp"},
 				{Query: "syntax error: unexpected token semicolon at line 144 column 2", Expectation: "Notify-Dev: CodeSyntaxAlert"},
+				{Query: "cannot use variable of type string as type int in argument to processTransaction", Expectation: "Notify-Dev: CodeSyntaxAlert"},
 				{Query: "corrupted go build cache detected in /root/.cache/go-build please clean", Expectation: "Evict-Cache: CacheEvict"},
+				{Query: "checksum mismatch for cached layer sha256:4a8b invalid local tar", Expectation: "Evict-Cache: CacheEvict"},
 			},
 		},
 		"fintech": {
@@ -327,22 +343,22 @@ func main() {
 				g.Bind("NormalTransfer", func(ctx context.Context, payload any) error {
 					fmt.Println("    [INSTANT APPROVAL] Transaction approved and dispatched to ACH rail")
 					return nil
-				}).WithAnchor(2.0, "lunch", "split", "colleagues", "monthly", "payment", "bill", "rent")
+				}).WithAnchor(2.0, "lunch", "split", "colleagues", "monthly", "payment", "bill", "rent", "reimbursement", "dinner")
 
 				g.Bind("PhishingSuspicion", func(ctx context.Context, payload any) error {
 					fmt.Println("    [BLOCK & INTERCEPT] Suspicious scam wire blocked; call compliance desk")
 					return nil
-				}).WithAnchor(2.2, "urgent", "police", "fine", "bitcoin", "wallet", "scam", "compromised")
+				}).WithAnchor(2.2, "urgent", "police", "fine", "bitcoin", "wallet", "scam", "compromised", "safety")
 
 				g.Bind("ChargebackDispute", func(ctx context.Context, payload any) error {
 					fmt.Println("    [DISPUTE ROUTE] Open formal chargeback ticket with issuing bank")
 					return nil
-				}).WithAnchor(2.0, "dispute", "charged", "three", "times", "single", "coffee", "card")
+				}).WithAnchor(2.0, "dispute", "charged", "three", "times", "single", "coffee", "card", "unauthorized", "subscription")
 
 				g.Bind("HighValueAudit", func(ctx context.Context, payload any) error {
 					fmt.Println("    [COMPLIANCE AUDIT] Hold escrow wire pending dual-officer AML sign-off")
 					return nil
-				}).WithAnchor(1.8, "acquisition", "escrow", "million", "tranche", "corporate")
+				}).WithAnchor(1.8, "acquisition", "escrow", "million", "tranche", "corporate", "commercial", "estate")
 
 				g.Ambiguous(func(ctx context.Context, p, s string, payload any) error {
 					fmt.Printf("    [STEP-UP 2FA] Ambiguous memo (%s vs %s): SMS OTP challenge required\n", p, s)
@@ -354,9 +370,13 @@ func main() {
 			},
 			TestCases: []TestCase{
 				{Query: "monthly lunch payment split with office colleagues", Expectation: "Instant Approval: NormalTransfer"},
-				{Query: "urgent send funds now police fine wire to bitcoin wallet", Expectation: "Block & Intercept: PhishingSuspicion"},
+				{Query: "reimbursement for team dinner pizza and drinks", Expectation: "Instant Approval: NormalTransfer"},
+				{Query: "urgent send funds now police fine wire to bitcoin wallet immediately", Expectation: "Block & Intercept: PhishingSuspicion"},
+				{Query: "your account is compromised transfer all savings to temporary safety wallet", Expectation: "Block & Intercept: PhishingSuspicion"},
 				{Query: "merchant charged my card three times for single coffee", Expectation: "Dispute: ChargebackDispute"},
+				{Query: "unauthorized recurring subscription charge from merchant after cancellation", Expectation: "Dispute: ChargebackDispute"},
 				{Query: "corporate acquisition escrow settlement tranche wire five million dollars", Expectation: "AML Audit: HighValueAudit"},
+				{Query: "commercial real estate property purchase closing escrow wire transfer", Expectation: "AML Audit: HighValueAudit"},
 			},
 		},
 	}
